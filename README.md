@@ -108,3 +108,6 @@ python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/t
 ```
 
 Чтобы проверить без отправки в VK: добавь `--dry-run`.
+
+Ссылки/иконки, которые надо автоматически добавлять в VK при репосте из Telegram, задаются файлом:
+`secrets/tg_links.json` (шаблон: `secrets/tg_links.json.example`).

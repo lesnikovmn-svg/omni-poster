@@ -14,12 +14,44 @@ class TgSyncConfig:
     telegram_bot_token: str | None
     vk_access_token: str | None
     vk_group_id: int | None
+    links_file: str | None = None
     timeout_s: int = 30
 
 
 class TgSync:
     def __init__(self, *, config: TgSyncConfig):
         self._config = config
+        self._links = self._load_links()
+
+    def _load_links(self) -> list[dict[str, str]]:
+        candidate = self._config.links_file or "secrets/tg_links.json"
+        path = Path(candidate)
+        if not path.exists():
+            return []
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            raise ValueError(f"tg links file must be a JSON array: {path}")
+        links: list[dict[str, str]] = []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            label = item.get("label")
+            url = item.get("url")
+            if not label or not url:
+                continue
+            links.append({"label": str(label), "url": str(url)})
+        return links
+
+    def _append_links(self, text: str) -> str:
+        if not self._links:
+            return text
+        lines = [text, "", "Ссылки:"]
+        for link in self._links:
+            label = link.get("label")
+            url = link.get("url")
+            if label and url:
+                lines.append(f"{label} {url}")
+        return "\n".join(lines)
 
     def _tg_api(self, method: str) -> str:
         if not self._config.telegram_bot_token:
@@ -181,6 +213,7 @@ class TgSync:
                 if m.get("text"):
                     text = str(m.get("text"))
                     break
+            text = self._append_links(text)
 
             file_ids: list[str] = []
             for m in group:
@@ -205,4 +238,3 @@ class TgSync:
         self._save_json(offset_state_path, {"offset": offset})
         self._save_json(seen_state_path, {"seen": seen})
         return 0
-

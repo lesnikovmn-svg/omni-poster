@@ -275,6 +275,11 @@ def main(argv: list[str] | None = None) -> int:
         default="./.state/tg_seen.json",
         help="Path to Telegram seen/posted state (per source recommended)",
     )
+    tg.add_argument(
+        "--links-file",
+        default="secrets/tg_links.json",
+        help="JSON file with links to append when reposting to VK",
+    )
     tg.add_argument("--dry-run", action="store_true", help="Do not send, only print actions")
 
     args = parser.parse_args(argv)
@@ -288,6 +293,7 @@ def main(argv: list[str] | None = None) -> int:
                 telegram_bot_token=config.telegram_bot_token,
                 vk_access_token=config.vk_access_token,
                 vk_group_id=config.vk_group_id,
+                links_file=str(args.links_file).strip() or None,
             )
         )
         return sync.run(
