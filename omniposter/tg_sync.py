@@ -157,7 +157,7 @@ class TgSync:
 
         matched_messages = 0
 
-        # advance offset
+        # advance offset (only persist when not dry_run)
         max_update_id = None
         for u in updates:
             if isinstance(u, dict) and "update_id" in u:
@@ -229,7 +229,6 @@ class TgSync:
 
             if dry_run:
                 print(f"[dry-run] tg-sync {source} -> vk: {key} photos={len(file_ids)}")
-                seen[key] = "dry-run"
                 processed += 1
                 continue
 
@@ -243,8 +242,9 @@ class TgSync:
             seen[key] = "posted"
             processed += 1
 
-        self._save_json(offset_state_path, {"offset": offset})
-        self._save_json(seen_state_path, {"seen": seen})
+        if not dry_run:
+            self._save_json(offset_state_path, {"offset": offset})
+            self._save_json(seen_state_path, {"seen": seen})
 
         if processed == 0:
             print(
