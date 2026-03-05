@@ -3,7 +3,7 @@ name: omni-poster
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
+    - cron: "*/5 * * * *" # every 5 minutes (best-effort)
 
 jobs:
   publish:
@@ -43,4 +43,5 @@ jobs:
           python -m omniposter run --posts ./posts
           python -m omniposter run --posts ./posts/my_avto5 --state ./.state/my_avto5.json
           python -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_avto_optimal.json
-
+          python -m omniposter tg-sync --source @MY_Avto5 --offset-state ./.state/tg_offset_my_avto5.json --seen-state ./.state/tg_seen_my_avto5.json
+          python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/tg_offset_my_avto_optimal.json --seen-state ./.state/tg_seen_my_avto_optimal.json

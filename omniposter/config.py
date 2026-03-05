@@ -23,13 +23,13 @@ class Config:
 def load_config() -> Config:
     dotenv_path = os.getenv("DOTENV_PATH")
     if dotenv_path:
-        load_dotenv(dotenv_path=dotenv_path)
+        load_dotenv(dotenv_path=dotenv_path, override=True)
     else:
         secrets_env = Path("secrets/.env")
         if secrets_env.exists():
-            load_dotenv(dotenv_path=secrets_env)
+            load_dotenv(dotenv_path=secrets_env, override=True)
         else:
-            load_dotenv()
+            load_dotenv(override=True)
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN") or None
     webhook_default_url = os.getenv("WEBHOOK_DEFAULT_URL") or None
     vk_access_token = os.getenv("VK_ACCESS_TOKEN") or None

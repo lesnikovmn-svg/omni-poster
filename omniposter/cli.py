@@ -9,6 +9,7 @@ from .config import load_config
 from .scheduler import select_due
 from .storage import load_posts, serialize_post
 from .state import load_state, mark_posted, save_state
+from .tg_sync import TgSync, TgSyncConfig
 from .publishers import (
     InstagramGraphPublisher,
     MaxGatewayPublisher,
@@ -258,10 +259,43 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to state file (set to empty string to disable state)",
     )
 
+    tg = sub.add_parser("tg-sync", help="Sync Telegram channel posts -> other targets (start with VK)")
+    tg.add_argument(
+        "--source",
+        required=True,
+        help="Telegram source channel username (e.g. @MY_Avto5) or numeric chat_id",
+    )
+    tg.add_argument(
+        "--offset-state",
+        default="./.state/tg_offset.json",
+        help="Path to Telegram offset state (per source recommended)",
+    )
+    tg.add_argument(
+        "--seen-state",
+        default="./.state/tg_seen.json",
+        help="Path to Telegram seen/posted state (per source recommended)",
+    )
+    tg.add_argument("--dry-run", action="store_true", help="Do not send, only print actions")
+
     args = parser.parse_args(argv)
     if args.cmd == "run":
         state_path = Path(args.state) if str(args.state).strip() else None
         return _run(Path(args.posts), dry_run=bool(args.dry_run), state_path=state_path)
+    if args.cmd == "tg-sync":
+        config = load_config()
+        sync = TgSync(
+            config=TgSyncConfig(
+                telegram_bot_token=config.telegram_bot_token,
+                vk_access_token=config.vk_access_token,
+                vk_group_id=config.vk_group_id,
+            )
+        )
+        return sync.run(
+            source=str(args.source),
+            offset_state_path=Path(args.offset_state),
+            seen_state_path=Path(args.seen_state),
+            dry_run=bool(args.dry_run),
+        )
     raise AssertionError("unreachable")
 
 
