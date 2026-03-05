@@ -1,0 +1,83 @@
+# omni-poster
+
+Авто‑публикация постов (текст + 1 фото) в разные каналы/группы через модульные “паблишеры”.
+
+Сейчас из коробки:
+- Telegram (Bot API): пост в канал/чат, где бот админ
+- Webhook: универсальная интеграция (можно подцепить VK/Instagram/Max через свой сервер/Make/Zapier/любой шлюз)
+- VK: пост на стену сообщества (текст или текст+фото)
+- Instagram Graph API: пост в ленту (только с фото по `image_url`)
+- MAX: через API‑шлюз (если используешь)
+
+> Важно про Instagram: автоматическая публикация легально делается через **официальный Instagram Graph API** (обычно нужен Business/Creator аккаунт, связка с Facebook Page и app/permissions). “Парсинг/вход по паролю” и прочие неофициальные боты часто нарушают ToS — сюда не закладываю.
+
+## Быстрый старт (локально)
+
+```bash
+cd omni-poster
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# заполни переменные
+
+python3 -m omniposter run --posts ./posts --dry-run
+python3 -m omniposter run --posts ./posts
+```
+
+Если видишь предупреждение `NotOpenSSLWarning` (LibreSSL), проще всего использовать Python из `pyenv`/Homebrew (OpenSSL), либо временно игнорировать warning — на функциональность проекта в большинстве случаев не влияет.
+
+По умолчанию включено состояние (анти‑дубли): `omni-poster/.state/state.json`. Если нужно отключить: `--state ""`.
+
+## Формат постов
+
+Посты — это JSON файлы в папке `posts/` (пример: `posts/sample-post.json`).
+
+Если у тебя несколько брендов, удобно держать отдельные папки и запускать по очереди:
+
+```bash
+python3 -m omniposter run --posts ./posts/my_avto5 --state ./.state/my_avto5.json
+python3 -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_avto_optimal.json
+```
+
+Рекомендация: делай `id` поста уникальным (например с префиксом бренда), чтобы не было конфликтов в state.
+
+Поля:
+- `id` (string, обязателен)
+- `publish_at` (ISO-8601, опционально) — если в будущем, пост пропускается
+- `text` (string, обязателен)
+- `image` (string, опционально) — путь к локальному файлу изображения (относительно `omni-poster/`)
+- `image_url` (string, опционально) — публичный URL изображения (нужен для Instagram и удобен для MAX/webhook)
+- `targets` (array, обязателен) — куда публиковать
+
+`targets` поддерживает:
+- `{"type":"telegram","chat_id":"@channel_or_chat_id","parse_mode":"HTML"}`
+- `{"type":"webhook","url":"https://...","headers":{"Authorization":"Bearer ..."}}`
+- `{"type":"vk"}`
+- `{"type":"instagram"}`
+- `{"type":"max","chat_id":"..."}`
+
+## Переменные окружения
+
+Смотри `.env.example`.
+
+## Примечания по Instagram Graph API
+
+- Для публикации в ленту нужен `image_url`, доступный из интернета: API скачивает картинку по URL.
+- Публикация идёт в 2 шага: создать media container → `media_publish`. Контейнеры имеют ограничения по времени жизни.
+
+## GitHub Actions (cron)
+
+Workflow уже готов: `.github/workflows/omni-poster.yml` (лежит в корне репозитория).
+
+В GitHub → Settings → Secrets and variables → Actions добавь:
+- `TELEGRAM_BOT_TOKEN`
+- (если используешь webhook) `WEBHOOK_DEFAULT_URL` и/или свои секреты под заголовки
+
+## Следующий шаг (подключим VK/Instagram/Max)
+
+Скажи, какие именно каналы нужны и какой способ доступа есть:
+- VK: токен сообщества? пост на стену сообщества + фото?
+- Instagram: Business/Creator + Graph API? (публикация в ленту)
+- Max: нужна точная платформа/API (скинь ссылку на документацию или название сервиса).

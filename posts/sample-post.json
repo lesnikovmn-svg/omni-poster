@@ -1,0 +1,19 @@
+{
+  "id": "sample-hello-1",
+  "publish_at": "2026-03-05T12:00:00+03:00",
+  "text": "Тестовый пост: только текст (добавь поле image, чтобы отправлять фото)",
+  "targets": [
+    {
+      "type": "telegram",
+      "chat_id": "@your_channel_or_chat_id",
+      "parse_mode": "HTML"
+    },
+    {
+      "type": "webhook",
+      "url": "https://example.com/webhook",
+      "headers": {
+        "Authorization": "Bearer YOUR_TOKEN"
+      }
+    }
+  ]
+}
