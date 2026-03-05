@@ -19,7 +19,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-cp .env.example .env
+cp secrets/.env.example secrets/.env
 # заполни переменные
 
 python3 -m omniposter run --posts ./posts --dry-run
@@ -60,7 +60,7 @@ python3 -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_av
 
 ## Переменные окружения
 
-Смотри `.env.example`.
+Смотри `secrets/.env.example` (локальные ключи держим в `secrets/.env`, он в `.gitignore`).
 
 ## Примечания по Instagram Graph API
 
