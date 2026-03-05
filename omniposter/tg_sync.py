@@ -155,6 +155,8 @@ class TgSync:
         if not isinstance(updates, list):
             raise RuntimeError(f"Telegram getUpdates malformed: {payload!r}")
 
+        matched_messages = 0
+
         # advance offset
         max_update_id = None
         for u in updates:
@@ -187,6 +189,7 @@ class TgSync:
                 if not username or str(username).lower() != str(sval).lower():
                     continue
 
+            matched_messages += 1
             mgid = msg.get("media_group_id")
             if mgid:
                 albums.setdefault(str(mgid), []).append(msg)
@@ -200,9 +203,12 @@ class TgSync:
         all_items: list[list[dict]] = list(albums.values()) + [[m] for m in singles]
         all_items.sort(key=lambda group: int((group[0].get("message_id") or 0)))
 
+        processed = 0
+        skipped_seen = 0
         for group in all_items:
             key = _msg_key(group[0])
             if seen.get(key):
+                skipped_seen += 1
                 continue
 
             text = ""
@@ -224,6 +230,7 @@ class TgSync:
             if dry_run:
                 print(f"[dry-run] tg-sync {source} -> vk: {key} photos={len(file_ids)}")
                 seen[key] = "dry-run"
+                processed += 1
                 continue
 
             if file_ids:
@@ -234,7 +241,19 @@ class TgSync:
                 vk.post_text(text=text)
 
             seen[key] = "posted"
+            processed += 1
 
         self._save_json(offset_state_path, {"offset": offset})
         self._save_json(seen_state_path, {"seen": seen})
+
+        if processed == 0:
+            print(
+                f"No new Telegram posts for {source}. "
+                f"updates={len(updates)} matched={matched_messages} skipped_seen={skipped_seen}."
+            )
+            if matched_messages == 0:
+                print(
+                    "Tip: bots do not backfill history. Publish a new post after adding the bot as admin, "
+                    "then run tg-sync again."
+                )
         return 0
