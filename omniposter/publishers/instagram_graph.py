@@ -52,3 +52,42 @@ class InstagramGraphPublisher:
         if "id" not in publish:
             raise RuntimeError(f"IG publish failed: {publish!r}")
 
+    def publish_photos(self, *, image_urls: list[str], caption: str) -> None:
+        if not image_urls:
+            raise ValueError("image_urls must be non-empty")
+        if len(image_urls) == 1:
+            self.publish_photo(image_url=image_urls[0], caption=caption)
+            return
+
+        child_ids: list[str] = []
+        for url in image_urls:
+            child = self._post(
+                f"{self.ig_user_id}/media",
+                {"image_url": url, "is_carousel_item": "true"},
+            )
+            cid = child.get("id")
+            if not cid:
+                raise RuntimeError(f"IG create carousel item failed: {child!r}")
+            child_ids.append(str(cid))
+
+        container = self._post(
+            f"{self.ig_user_id}/media",
+            {"media_type": "CAROUSEL", "children": ",".join(child_ids), "caption": caption},
+        )
+        creation_id = container.get("id")
+        if not creation_id:
+            raise RuntimeError(f"IG create carousel container failed: {container!r}")
+
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            status = self._get(str(creation_id), {"fields": "status_code"})
+            code = status.get("status_code")
+            if code == "FINISHED":
+                break
+            if code == "ERROR":
+                raise RuntimeError(f"IG carousel container error: {status!r}")
+            time.sleep(2)
+
+        publish = self._post(f"{self.ig_user_id}/media_publish", {"creation_id": creation_id})
+        if "id" not in publish:
+            raise RuntimeError(f"IG carousel publish failed: {publish!r}")

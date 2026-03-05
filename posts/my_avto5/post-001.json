@@ -2,6 +2,17 @@
   "id": "my_avto5-001",
   "publish_at": "2026-03-05T12:00:00+03:00",
   "text": "MY_Avto5: пример поста (замени текст и дату/время)",
+  "images": [
+    "posts/my_avto5/media/001-1.jpg",
+    "posts/my_avto5/media/001-2.jpg"
+  ],
+  "links": [
+    { "label": "Telegram", "url": "https://t.me/MY_Avto5" },
+    { "label": "VK", "url": "https://vk.com/club229926764" },
+    { "label": "Instagram", "url": "https://instagram.com/" },
+    { "label": "RuTube", "url": "https://rutube.ru/" },
+    { "label": "MAX", "url": "https://max.ru/" }
+  ],
   "targets": [
     {
       "type": "telegram",

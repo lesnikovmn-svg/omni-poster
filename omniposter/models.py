@@ -14,10 +14,19 @@ class Target:
 
 
 @dataclass(frozen=True)
+class Link:
+    label: str
+    url: str
+
+
+@dataclass(frozen=True)
 class Post:
     id: str
     text: str
     targets: list[Target]
     publish_at: datetime | None = None
-    image: str | None = None
-    image_url: str | None = None
+    image: str | None = None  # legacy single local image
+    image_url: str | None = None  # legacy single public image URL
+    images: list[str] | None = None  # local image paths
+    image_urls: list[str] | None = None  # public image URLs
+    links: list[Link] | None = None

@@ -1,7 +1,11 @@
 {
   "id": "sample-hello-1",
   "publish_at": "2026-03-05T12:00:00+03:00",
-  "text": "Тестовый пост: только текст (добавь поле image, чтобы отправлять фото)",
+  "text": "Тестовый пост: текст + кнопки",
+  "links": [
+    { "label": "Telegram", "url": "https://t.me/" },
+    { "label": "VK", "url": "https://vk.com/" }
+  ],
   "targets": [
     {
       "type": "telegram",

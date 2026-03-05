@@ -2,6 +2,16 @@
   "id": "my_avto_optimal-001",
   "publish_at": "2026-03-05T12:00:00+03:00",
   "text": "My_Avto_Optimal: пример поста (замени текст и дату/время)",
+  "images": [
+    "posts/my_avto_optimal/media/001-1.jpg"
+  ],
+  "links": [
+    { "label": "Telegram", "url": "https://t.me/My_Avto_Optimal" },
+    { "label": "VK", "url": "https://vk.com/club229926764" },
+    { "label": "Instagram", "url": "https://instagram.com/" },
+    { "label": "RuTube", "url": "https://rutube.ru/" },
+    { "label": "MAX", "url": "https://max.ru/" }
+  ],
   "targets": [
     {
       "type": "telegram",

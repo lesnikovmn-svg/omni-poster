@@ -36,10 +36,15 @@ class VkPublisher:
         )
 
     def post_photo(self, *, text: str, image_path: Path) -> None:
+        self.post_photos(text=text, image_paths=[image_path])
+
+    def post_photos(self, *, text: str, image_paths: list[Path]) -> None:
+        if not image_paths:
+            raise ValueError("image_paths must be non-empty")
         server = self._call("photos.getWallUploadServer", {"group_id": abs(int(self.group_id))})
         upload_url = server["upload_url"]
 
-        files = {"photo": (image_path.name, image_path.read_bytes())}
+        files = [("photo", (p.name, p.read_bytes())) for p in image_paths]
         upload_resp = requests.post(upload_url, files=files, timeout=self.timeout_s)
         upload_resp.raise_for_status()
         upload_data = upload_resp.json()
@@ -57,10 +62,11 @@ class VkPublisher:
         )
         if not isinstance(saved, list) or not saved:
             raise RuntimeError(f"VK saveWallPhoto response malformed: {saved!r}")
-        photo = saved[0]
-        owner_id = photo["owner_id"]
-        photo_id = photo["id"]
-        attachment = f"photo{owner_id}_{photo_id}"
+        attachments = []
+        for photo in saved:
+            owner_id = photo["owner_id"]
+            photo_id = photo["id"]
+            attachments.append(f"photo{owner_id}_{photo_id}")
 
         self._call(
             "wall.post",
@@ -68,7 +74,6 @@ class VkPublisher:
                 "owner_id": -abs(int(self.group_id)),
                 "from_group": 1,
                 "message": text,
-                "attachments": attachment,
+                "attachments": ",".join(attachments),
             },
         )
-

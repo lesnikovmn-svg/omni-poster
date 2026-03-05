@@ -17,6 +17,32 @@ from .publishers import (
     WebhookPublisher,
 )
 
+def _render_links_text(links) -> str:
+    if not links:
+        return ""
+    lines = ["", "Ссылки:"]
+    for link in links:
+        label = getattr(link, "label", None)
+        url = getattr(link, "url", None)
+        if label and url:
+            lines.append(f"- {label}: {url}")
+    return "\n".join(lines) if len(lines) > 2 else ""
+
+
+def _telegram_keyboard(links):
+    if not links:
+        return None
+    buttons = []
+    for link in links:
+        label = getattr(link, "label", None)
+        url = getattr(link, "url", None)
+        if label and url:
+            buttons.append({"text": str(label), "url": str(url)})
+    if not buttons:
+        return None
+    rows = [buttons[i : i + 2] for i in range(0, len(buttons), 2)]
+    return {"inline_keyboard": rows}
+
 
 def _target_key(target_type: str, *, chat_id: str | None = None, url: str | None = None) -> str:
     if target_type == "telegram":
@@ -68,6 +94,7 @@ def _run(posts_dir: Path, *, dry_run: bool, state_path: Path | None) -> int:
     state = load_state(state_path) if state_path else None
 
     for post in due.due:
+        text_with_links = post.text + _render_links_text(post.links)
         for target in post.targets:
             if target.type == "telegram":
                 if not target.chat_id:
@@ -81,18 +108,41 @@ def _run(posts_dir: Path, *, dry_run: bool, state_path: Path | None) -> int:
                     continue
                 if telegram is None:
                     raise RuntimeError("TELEGRAM_BOT_TOKEN is required for telegram targets")
-                if post.image:
-                    image_path = (base_dir / post.image).resolve()
-                    if not image_path.exists():
-                        raise FileNotFoundError(f"post {post.id}: image not found: {image_path}")
-                    telegram.send_photo(
-                        chat_id=target.chat_id,
-                        image_path=image_path,
-                        caption=post.text,
-                        parse_mode=target.parse_mode,
-                    )
+                keyboard = _telegram_keyboard(post.links)
+                images = post.images or ([post.image] if post.image else None)
+                if images:
+                    image_paths = [(base_dir / p).resolve() for p in images]
+                    for p in image_paths:
+                        if not p.exists():
+                            raise FileNotFoundError(f"post {post.id}: image not found: {p}")
+                    if len(image_paths) == 1:
+                        telegram.send_photo(
+                            chat_id=target.chat_id,
+                            image_path=image_paths[0],
+                            caption=text_with_links,
+                            parse_mode=target.parse_mode,
+                            reply_markup=keyboard,
+                        )
+                    else:
+                        telegram.send_media_group(
+                            chat_id=target.chat_id,
+                            image_paths=image_paths,
+                            caption=text_with_links,
+                            parse_mode=target.parse_mode,
+                        )
+                        if keyboard:
+                            telegram.send_message(
+                                chat_id=target.chat_id,
+                                text="Открыть ссылки:",
+                                reply_markup=keyboard,
+                            )
                 else:
-                    telegram.send_message(chat_id=target.chat_id, text=post.text, parse_mode=target.parse_mode)
+                    telegram.send_message(
+                        chat_id=target.chat_id,
+                        text=text_with_links,
+                        parse_mode=target.parse_mode,
+                        reply_markup=keyboard,
+                    )
                 if state is not None:
                     state = mark_posted(state, post_id=post.id, target_key=tkey)
                 continue
@@ -130,13 +180,18 @@ def _run(posts_dir: Path, *, dry_run: bool, state_path: Path | None) -> int:
                     continue
                 if vk is None:
                     raise RuntimeError("VK_ACCESS_TOKEN and VK_GROUP_ID are required for vk targets")
-                if post.image:
-                    image_path = (base_dir / post.image).resolve()
-                    if not image_path.exists():
-                        raise FileNotFoundError(f"post {post.id}: image not found: {image_path}")
-                    vk.post_photo(text=post.text, image_path=image_path)
+                images = post.images or ([post.image] if post.image else None)
+                if images:
+                    image_paths = [(base_dir / p).resolve() for p in images]
+                    for p in image_paths:
+                        if not p.exists():
+                            raise FileNotFoundError(f"post {post.id}: image not found: {p}")
+                    if len(image_paths) == 1:
+                        vk.post_photo(text=text_with_links, image_path=image_paths[0])
+                    else:
+                        vk.post_photos(text=text_with_links, image_paths=image_paths)
                 else:
-                    vk.post_text(text=post.text)
+                    vk.post_text(text=text_with_links)
                 if state is not None:
                     state = mark_posted(state, post_id=post.id, target_key=tkey)
                 continue
@@ -151,13 +206,13 @@ def _run(posts_dir: Path, *, dry_run: bool, state_path: Path | None) -> int:
                     continue
                 if ig is None:
                     raise RuntimeError("IG_ACCESS_TOKEN and IG_USER_ID are required for instagram targets")
-                image_url = post.image_url
-                if not image_url:
+                image_urls = post.image_urls or ([post.image_url] if post.image_url else None)
+                if not image_urls:
                     raise RuntimeError(
                         f"post {post.id}: instagram requires image_url (public URL); "
                         "Instagram feed posts cannot be text-only"
                     )
-                ig.publish_photo(image_url=image_url, caption=post.text)
+                ig.publish_photos(image_urls=image_urls, caption=text_with_links)
                 if state is not None:
                     state = mark_posted(state, post_id=post.id, target_key=tkey)
                 continue

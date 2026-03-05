@@ -5,8 +5,8 @@
 Сейчас из коробки:
 - Telegram (Bot API): пост в канал/чат, где бот админ
 - Webhook: универсальная интеграция (можно подцепить VK/Instagram/Max через свой сервер/Make/Zapier/любой шлюз)
-- VK: пост на стену сообщества (текст или текст+фото)
-- Instagram Graph API: пост в ленту (только с фото по `image_url`)
+- VK: пост на стену сообщества (текст или текст + до 10 фото)
+- Instagram Graph API: пост в ленту (1 фото) или карусель (несколько фото) по `image_url(s)`
 - MAX: через API‑шлюз (если используешь)
 
 > Важно про Instagram: автоматическая публикация легально делается через **официальный Instagram Graph API** (обычно нужен Business/Creator аккаунт, связка с Facebook Page и app/permissions). “Парсинг/вход по паролю” и прочие неофициальные боты часто нарушают ToS — сюда не закладываю.
@@ -47,8 +47,10 @@ python3 -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_av
 - `id` (string, обязателен)
 - `publish_at` (ISO-8601, опционально) — если в будущем, пост пропускается
 - `text` (string, обязателен)
-- `image` (string, опционально) — путь к локальному файлу изображения (относительно `omni-poster/`)
-- `image_url` (string, опционально) — публичный URL изображения (нужен для Instagram и удобен для MAX/webhook)
+- `images` (array, опционально) — список локальных файлов изображений (для TG/VK)
+- `image_urls` (array, опционально) — список публичных URL изображений (для Instagram/MAX/webhook)
+- `image` / `image_url` — старые single‑поля (можно не использовать)
+- `links` (array, опционально) — кнопки/ссылки, формат: `[{ "label": "...", "url": "..." }]`
 - `targets` (array, обязателен) — куда публиковать
 
 `targets` поддерживает:
@@ -57,6 +59,11 @@ python3 -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_av
 - `{"type":"vk"}`
 - `{"type":"instagram"}`
 - `{"type":"max","chat_id":"..."}`
+
+## Кнопки/иконки
+
+- В Telegram `links` превращаются в inline‑кнопки (keyboard). Если пост с альбомом (>1 фото), кнопки отправляются отдельным сообщением “Открыть ссылки:”.
+- В VK/Instagram/MAX ссылки просто добавляются в текст (блок “Ссылки:”).
 
 ## Переменные окружения
 
