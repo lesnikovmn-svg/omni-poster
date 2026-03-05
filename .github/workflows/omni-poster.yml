@@ -18,19 +18,17 @@ jobs:
       - name: Cache state
         uses: actions/cache@v4
         with:
-          path: omni-poster/.state
+          path: .state
           key: omniposter-state-${{ github.ref_name }}
           restore-keys: |
             omniposter-state-
 
       - name: Install
-        working-directory: omni-poster
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run
-        working-directory: omni-poster
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           WEBHOOK_DEFAULT_URL: ${{ secrets.WEBHOOK_DEFAULT_URL }}

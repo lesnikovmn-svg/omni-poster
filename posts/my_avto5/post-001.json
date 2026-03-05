@@ -7,7 +7,9 @@
       "type": "telegram",
       "chat_id": "@MY_Avto5",
       "parse_mode": "HTML"
+    },
+    {
+      "type": "vk"
     }
   ]
 }
-
