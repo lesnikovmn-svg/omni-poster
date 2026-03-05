@@ -13,6 +13,7 @@ from .publishers.vk import VkPublisher
 class TgSyncConfig:
     telegram_bot_token: str | None
     vk_access_token: str | None
+    vk_user_access_token: str | None
     vk_group_id: int | None
     links_file: str | None = None
     timeout_s: int = 30
@@ -131,7 +132,11 @@ class TgSync:
     ) -> int:
         if not self._config.vk_access_token or not self._config.vk_group_id:
             raise RuntimeError("VK_ACCESS_TOKEN and VK_GROUP_ID are required for tg-sync -> vk")
-        vk = VkPublisher(self._config.vk_access_token, self._config.vk_group_id)
+        vk = VkPublisher(
+            access_token=self._config.vk_access_token,
+            group_id=self._config.vk_group_id,
+            user_access_token=self._config.vk_user_access_token,
+        )
 
         offset_state = self._load_json(offset_state_path, {"offset": 0})
         offset = int(offset_state.get("offset") or 0)

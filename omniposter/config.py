@@ -12,6 +12,7 @@ class Config:
     telegram_bot_token: str | None
     webhook_default_url: str | None
     vk_access_token: str | None
+    vk_user_access_token: str | None
     vk_group_id: int | None
     ig_access_token: str | None
     ig_user_id: str | None
@@ -33,6 +34,7 @@ def load_config() -> Config:
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN") or None
     webhook_default_url = os.getenv("WEBHOOK_DEFAULT_URL") or None
     vk_access_token = os.getenv("VK_ACCESS_TOKEN") or None
+    vk_user_access_token = os.getenv("VK_USER_ACCESS_TOKEN") or None
     vk_group_id_raw = os.getenv("VK_GROUP_ID") or ""
     vk_group_id = int(vk_group_id_raw) if vk_group_id_raw.strip() else None
     ig_access_token = os.getenv("IG_ACCESS_TOKEN") or None
@@ -44,6 +46,7 @@ def load_config() -> Config:
         telegram_bot_token=telegram_bot_token,
         webhook_default_url=webhook_default_url,
         vk_access_token=vk_access_token,
+        vk_user_access_token=vk_user_access_token,
         vk_group_id=vk_group_id,
         ig_access_token=ig_access_token,
         ig_user_id=ig_user_id,

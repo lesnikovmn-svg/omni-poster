@@ -72,7 +72,11 @@ def _run(posts_dir: Path, *, dry_run: bool, state_path: Path | None) -> int:
     telegram = TelegramPublisher(config.telegram_bot_token) if config.telegram_bot_token else None
     webhook = WebhookPublisher()
     vk = (
-        VkPublisher(config.vk_access_token, config.vk_group_id)
+        VkPublisher(
+            access_token=config.vk_access_token,
+            group_id=config.vk_group_id,
+            user_access_token=config.vk_user_access_token,
+        )
         if config.vk_access_token and config.vk_group_id
         else None
     )
@@ -292,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
             config=TgSyncConfig(
                 telegram_bot_token=config.telegram_bot_token,
                 vk_access_token=config.vk_access_token,
+                vk_user_access_token=config.vk_user_access_token,
                 vk_group_id=config.vk_group_id,
                 links_file=str(args.links_file).strip() or None,
             )
