@@ -46,3 +46,11 @@ jobs:
           python -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_avto_optimal.json
           python -m omniposter tg-sync --source @MY_Avto5 --offset-state ./.state/tg_offset_my_avto5.json --seen-state ./.state/tg_seen_my_avto5.json
           python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/tg_offset_my_avto_optimal.json --seen-state ./.state/tg_seen_my_avto_optimal.json
+
+      - name: Commit state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .state/ || true
+          git diff --cached --quiet || git commit -m "chore: update state [skip ci]"
+          git push || true
