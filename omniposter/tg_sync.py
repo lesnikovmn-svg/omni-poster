@@ -43,6 +43,14 @@ class TgSync:
             links.append({"label": str(label), "url": str(url)})
         return links
 
+    def _fix_tg_mentions(self, text: str) -> str:
+        import re
+        return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
+
+    def _fix_tg_mentions(self, text: str) -> str:
+        import re
+        return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
+
     def _append_links(self, text: str) -> str:
         if not self._links:
             return text
@@ -226,7 +234,7 @@ class TgSync:
                 if m.get("text"):
                     text = str(m.get("text"))
                     break
-            text = self._append_links(text)
+            text = self._append_links(self._fix_tg_mentions(text))
 
             file_ids: list[str] = []
             for m in group:
