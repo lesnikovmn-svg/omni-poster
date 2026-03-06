@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VK OAuth Callback</title>
+    <style>
+      body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; max-width: 860px; margin: 0 auto; }
+      code, pre, input { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+      .box { padding: 16px; border: 1px solid #ddd; border-radius: 10px; background: #fafafa; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      input { width: min(820px, 100%); padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; }
+      button { padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; background: white; }
+      .ok { color: #0a7a2f; }
+      .err { color: #b00020; }
+      small { color: #555; }
+    </style>
+  </head>
+  <body>
+    <h1>VK OAuth Callback</h1>
+    <p>Эта страница показывает <code>access_token</code>, который VK возвращает после авторизации.</p>
+
+    <div class="box">
+      <div class="row">
+        <strong>access_token</strong>
+        <span id="status"></span>
+      </div>
+      <p>
+        <input id="token" readonly placeholder="Открой OAuth-ссылку — токен появится здесь" />
+      </p>
+      <div class="row">
+        <button id="copy">Скопировать</button>
+        <small>Токен никому не отправляй. Вставь в <code>secrets/.env</code> как <code>VK_USER_ACCESS_TOKEN=...</code></small>
+      </div>
+      <pre id="raw"></pre>
+    </div>
+
+    <h2>Что дальше</h2>
+    <ol>
+      <li>Скопируй токен и вставь в <code>VK_USER_ACCESS_TOKEN</code> (локально) или GitHub Secrets.</li>
+      <li>Проверь, что токен user-типа: вызов <code>users.get</code> должен вернуть <code>response</code> с <code>id</code>.</li>
+    </ol>
+
+    <script>
+      function parseFragment(hash) {
+        const out = {};
+        const h = (hash || "").replace(/^#/, "");
+        for (const part of h.split("&")) {
+          if (!part) continue;
+          const [k, v] = part.split("=");
+          out[decodeURIComponent(k || "")] = decodeURIComponent(v || "");
+        }
+        return out;
+      }
+
+      const params = parseFragment(location.hash);
+      const token = params["access_token"] || "";
+      const statusEl = document.getElementById("status");
+      const tokenEl = document.getElementById("token");
+      const rawEl = document.getElementById("raw");
+
+      rawEl.textContent = JSON.stringify(params, null, 2);
+      if (token) {
+        tokenEl.value = token;
+        statusEl.textContent = "получен";
+        statusEl.className = "ok";
+      } else {
+        statusEl.textContent = "не найден (проверь, что response_type=token)";
+        statusEl.className = "err";
+      }
+
+      document.getElementById("copy").addEventListener("click", async () => {
+        if (!tokenEl.value) return;
+        try {
+          await navigator.clipboard.writeText(tokenEl.value);
+          statusEl.textContent = "скопировано";
+          statusEl.className = "ok";
+        } catch (e) {
+          tokenEl.select();
+          document.execCommand("copy");
+          statusEl.textContent = "скопировано";
+          statusEl.className = "ok";
+        }
+      });
+    </script>
+  </body>
+</html>
+

@@ -112,3 +112,23 @@ python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/t
 
 Ссылки/иконки, которые надо автоматически добавлять в VK при репосте из Telegram, задаются файлом:
 `secrets/tg_links.json` (шаблон: `secrets/tg_links.json.example`).
+
+## Как получить `VK_USER_ACCESS_TOKEN` (чтобы VK принимал фото)
+
+Для загрузки фото в VK API часто нужен **user-токен** (не ключ доступа сообщества).
+
+Рекомендованный способ: сделать редирект на GitHub Pages и забрать токен со страницы коллбэка.
+
+1) Включи GitHub Pages для репозитория `omni-poster`:
+   - Settings → Pages → Deploy from branch → `main` + `/docs`
+2) Добавь в VK приложении (в настройках платформы Web):
+   - Site URL: `https://lesnikovmn-svg.github.io/omni-poster/`
+   - Trusted redirect URL: `https://lesnikovmn-svg.github.io/omni-poster/vk-callback.html`
+3) Открой OAuth ссылку (подставлен твой `client_id`):
+
+```text
+https://oauth.vk.com/authorize?client_id=54473171&display=page&redirect_uri=https%3A%2F%2Flesnikovmn-svg.github.io%2Fomni-poster%2Fvk-callback.html&scope=photos,wall,groups,offline&response_type=token&v=5.131&revoke=1
+```
+
+4) После “Разрешить” ты попадёшь на страницу коллбэка и увидишь `access_token`. Его вставь в `secrets/.env`:
+`VK_USER_ACCESS_TOKEN=...`
