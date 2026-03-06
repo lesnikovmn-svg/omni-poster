@@ -116,6 +116,8 @@ class TgSync:
         url = self._tg_file_url(file_path)
         dest_dir.mkdir(parents=True, exist_ok=True)
         name = Path(file_path).name
+        if '.' not in name:
+            name = name + '.jpg'
         dest = dest_dir / name
         r = requests.get(url, timeout=self._config.timeout_s)
         r.raise_for_status()

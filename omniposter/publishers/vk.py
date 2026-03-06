@@ -21,7 +21,8 @@ class VkPublisher:
         merged["access_token"] = token or self.access_token
         merged["v"] = self.api_version
         try:
-            resp = requests.get(url, params=merged, timeout=self.timeout_s)
+            # Use POST to avoid putting tokens into the URL query string (safer for logs/stacktraces).
+            resp = requests.post(url, data=merged, timeout=self.timeout_s)
         except RequestException as e:
             raise RuntimeError(f"VK request failed ({method}): network/DNS error") from e
         resp.raise_for_status()
@@ -61,33 +62,36 @@ class VkPublisher:
         )
         upload_url = server["upload_url"]
 
-        files = [("photo", (p.name, p.read_bytes())) for p in image_paths]
-        try:
-            upload_resp = requests.post(upload_url, files=files, timeout=self.timeout_s)
-        except RequestException as e:
-            raise RuntimeError("VK upload failed: network/DNS error") from e
-        upload_resp.raise_for_status()
-        upload_data = upload_resp.json()
-        if not all(k in upload_data for k in ("server", "photo", "hash")):
-            raise RuntimeError(f"VK upload response malformed: {upload_data!r}")
-
-        saved = self._call(
-            "photos.saveWallPhoto",
-            {
-                "group_id": abs(int(self.group_id)),
-                "server": upload_data["server"],
-                "photo": upload_data["photo"],
-                "hash": upload_data["hash"],
-            },
-            token=upload_token,
-        )
-        if not isinstance(saved, list) or not saved:
-            raise RuntimeError(f"VK saveWallPhoto response malformed: {saved!r}")
         attachments = []
-        for photo in saved:
-            owner_id = photo["owner_id"]
-            photo_id = photo["id"]
-            attachments.append(f"photo{owner_id}_{photo_id}")
+        for p in image_paths:
+            server = self._call(
+                "photos.getWallUploadServer",
+                {"group_id": abs(int(self.group_id))},
+                token=upload_token,
+            )
+            upload_url = server["upload_url"]
+            try:
+                upload_resp = requests.post(upload_url, files={"photo": (p.name, p.read_bytes())}, timeout=self.timeout_s)
+            except RequestException as e:
+                raise RuntimeError("VK upload failed: network/DNS error") from e
+            upload_resp.raise_for_status()
+            upload_data = upload_resp.json()
+            if not all(k in upload_data for k in ("server", "photo", "hash")):
+                raise RuntimeError(f"VK upload response malformed: {upload_data!r}")
+            saved = self._call(
+                "photos.saveWallPhoto",
+                {
+                    "group_id": abs(int(self.group_id)),
+                    "server": upload_data["server"],
+                    "photo": upload_data["photo"],
+                    "hash": upload_data["hash"],
+                },
+                token=upload_token,
+            )
+            if not isinstance(saved, list) or not saved:
+                raise RuntimeError(f"VK saveWallPhoto response malformed: {saved!r}")
+            for photo in saved:
+                attachments.append(f"photo{photo['owner_id']}_{photo['id']}")
 
         self._call(
             "wall.post",
