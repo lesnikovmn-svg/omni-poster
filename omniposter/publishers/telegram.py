@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 
 import requests
+from requests import RequestException
 
 
 @dataclass(frozen=True)
@@ -28,7 +29,10 @@ class TelegramPublisher:
             payload["parse_mode"] = parse_mode
         if reply_markup:
             payload["reply_markup"] = reply_markup
-        resp = requests.post(self._api("sendMessage"), json=payload, timeout=self.timeout_s)
+        try:
+            resp = requests.post(self._api("sendMessage"), json=payload, timeout=self.timeout_s)
+        except RequestException as e:
+            raise RuntimeError("Telegram sendMessage failed: network/DNS error") from e
         resp.raise_for_status()
         data = resp.json()
         if not data.get("ok"):
@@ -51,7 +55,10 @@ class TelegramPublisher:
             data["parse_mode"] = parse_mode
         if reply_markup:
             data["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)
-        resp = requests.post(self._api("sendPhoto"), data=data, files=files, timeout=self.timeout_s)
+        try:
+            resp = requests.post(self._api("sendPhoto"), data=data, files=files, timeout=self.timeout_s)
+        except RequestException as e:
+            raise RuntimeError("Telegram sendPhoto failed: network/DNS error") from e
         resp.raise_for_status()
         payload = resp.json()
         if not payload.get("ok"):
@@ -83,7 +90,10 @@ class TelegramPublisher:
             media.append(item)
 
         data = {"chat_id": chat_id, "media": json.dumps(media, ensure_ascii=False)}
-        resp = requests.post(self._api("sendMediaGroup"), data=data, files=files, timeout=self.timeout_s)
+        try:
+            resp = requests.post(self._api("sendMediaGroup"), data=data, files=files, timeout=self.timeout_s)
+        except RequestException as e:
+            raise RuntimeError("Telegram sendMediaGroup failed: network/DNS error") from e
         resp.raise_for_status()
         payload = resp.json()
         if not payload.get("ok"):

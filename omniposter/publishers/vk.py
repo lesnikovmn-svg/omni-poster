@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
+from requests import RequestException
 
 
 @dataclass(frozen=True)
@@ -19,7 +20,10 @@ class VkPublisher:
         merged = dict(params)
         merged["access_token"] = token or self.access_token
         merged["v"] = self.api_version
-        resp = requests.get(url, params=merged, timeout=self.timeout_s)
+        try:
+            resp = requests.get(url, params=merged, timeout=self.timeout_s)
+        except RequestException as e:
+            raise RuntimeError(f"VK request failed ({method}): network/DNS error") from e
         resp.raise_for_status()
         payload = resp.json()
         if "error" in payload:
@@ -58,7 +62,10 @@ class VkPublisher:
         upload_url = server["upload_url"]
 
         files = [("photo", (p.name, p.read_bytes())) for p in image_paths]
-        upload_resp = requests.post(upload_url, files=files, timeout=self.timeout_s)
+        try:
+            upload_resp = requests.post(upload_url, files=files, timeout=self.timeout_s)
+        except RequestException as e:
+            raise RuntimeError("VK upload failed: network/DNS error") from e
         upload_resp.raise_for_status()
         upload_data = upload_resp.json()
         if not all(k in upload_data for k in ("server", "photo", "hash")):
