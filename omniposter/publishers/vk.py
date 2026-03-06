@@ -46,6 +46,7 @@ class VkPublisher:
                 "from_group": 1,
                 "message": text,
             },
+            token=upload_token,
         )
 
     def post_photo(self, *, text: str, image_path: Path) -> None:
@@ -101,4 +102,5 @@ class VkPublisher:
                 "message": text,
                 "attachments": ",".join(attachments),
             },
+            token=upload_token,
         )
