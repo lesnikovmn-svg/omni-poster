@@ -117,6 +117,8 @@ python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/t
 
 Для загрузки фото в VK API часто нужен **user-токен** (не ключ доступа сообщества).
 
+Короткий runbook: `docs/vk-token-runbook.md`.
+
 Рекомендованный способ: сделать редирект на GitHub Pages и забрать токен со страницы коллбэка.
 
 1) Включи GitHub Pages для репозитория `omni-poster`:
