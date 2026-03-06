@@ -132,3 +132,18 @@ https://oauth.vk.com/authorize?client_id=54473171&display=page&redirect_uri=http
 
 4) После “Разрешить” ты попадёшь на страницу коллбэка и увидишь `access_token`. Его вставь в `secrets/.env`:
 `VK_USER_ACCESS_TOKEN=...`
+
+Если VK отдаёт `Security Error` на `response_type=token`, используй `response_type=code` и обменяй код на токен:
+
+1) Открой:
+
+```text
+https://oauth.vk.com/authorize?client_id=YOUR_CLIENT_ID&display=page&redirect_uri=https%3A%2F%2Flesnikovmn-svg.github.io%2Fomni-poster%2Fvk-callback.html&scope=photos,wall,groups,offline&response_type=code&v=5.131&revoke=1
+```
+
+2) На `vk-callback.html` появится `code` (в JSON снизу).
+3) Обмени код на токен (нужен `client_secret` из настроек приложения):
+
+```bash
+python -m omniposter vk-exchange --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET --redirect-uri "https://lesnikovmn-svg.github.io/omni-poster/vk-callback.html" --code YOUR_CODE
+```

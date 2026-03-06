@@ -10,6 +10,7 @@ from .scheduler import select_due
 from .storage import load_posts, serialize_post
 from .state import load_state, mark_posted, save_state
 from .tg_sync import TgSync, TgSyncConfig
+from .vk_oauth import exchange_code_for_token
 from .publishers import (
     InstagramGraphPublisher,
     MaxGatewayPublisher,
@@ -286,6 +287,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     tg.add_argument("--dry-run", action="store_true", help="Do not send, only print actions")
 
+    vkx = sub.add_parser("vk-exchange", help="Exchange VK OAuth code for user access_token")
+    vkx.add_argument("--client-id", required=True, help="VK app client_id")
+    vkx.add_argument("--client-secret", required=True, help="VK app client_secret (secure key)")
+    vkx.add_argument("--redirect-uri", required=True, help="redirect_uri used in authorize request")
+    vkx.add_argument("--code", required=True, help="authorization code from redirect")
+
     args = parser.parse_args(argv)
     if args.cmd == "run":
         state_path = Path(args.state) if str(args.state).strip() else None
@@ -307,6 +314,19 @@ def main(argv: list[str] | None = None) -> int:
             seen_state_path=Path(args.seen_state),
             dry_run=bool(args.dry_run),
         )
+    if args.cmd == "vk-exchange":
+        result = exchange_code_for_token(
+            client_id=str(args.client_id),
+            client_secret=str(args.client_secret),
+            redirect_uri=str(args.redirect_uri),
+            code=str(args.code),
+        )
+        print("VK_USER_ACCESS_TOKEN=" + result.access_token)
+        if result.user_id is not None:
+            print("VK_USER_ID=" + str(result.user_id))
+        if result.expires_in is not None:
+            print("VK_EXPIRES_IN=" + str(result.expires_in))
+        return 0
     raise AssertionError("unreachable")
 
 

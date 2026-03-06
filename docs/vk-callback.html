@@ -53,8 +53,12 @@
         return out;
       }
 
-      const params = parseFragment(location.hash);
+      const fragmentParams = parseFragment(location.hash);
+      const queryParams = Object.fromEntries(new URLSearchParams(location.search).entries());
+
+      const params = { ...queryParams, ...fragmentParams };
       const token = params["access_token"] || "";
+      const code = params["code"] || "";
       const statusEl = document.getElementById("status");
       const tokenEl = document.getElementById("token");
       const rawEl = document.getElementById("raw");
@@ -64,8 +68,11 @@
         tokenEl.value = token;
         statusEl.textContent = "получен";
         statusEl.className = "ok";
+      } else if (code) {
+        statusEl.textContent = "получен code (нужен обмен)";
+        statusEl.className = "ok";
       } else {
-        statusEl.textContent = "не найден (проверь, что response_type=token)";
+        statusEl.textContent = "не найден (проверь, что response_type=token или code)";
         statusEl.className = "err";
       }
 
@@ -85,4 +92,3 @@
     </script>
   </body>
 </html>
-
