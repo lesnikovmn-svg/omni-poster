@@ -37,8 +37,8 @@ jobs:
           MAX_API_TOKEN: ${{ secrets.MAX_API_TOKEN }}
           MAX_API_BASE: ${{ secrets.MAX_API_BASE }}
         run: |
-          git fetch origin main
-          git checkout origin/main -- .state/ 2>/dev/null || true
+          git fetch https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} main
+          git checkout FETCH_HEAD -- .state/ 2>/dev/null || true
           python -m omniposter run --posts ./posts
           python -m omniposter run --posts ./posts/my_avto5 --state ./.state/my_avto5.json
           python -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_avto_optimal.json
