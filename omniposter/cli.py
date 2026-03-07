@@ -349,7 +349,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"len={len(t)}",
                 f"starts_vk1={t.startswith('vk1.')}",
                 f"has_space={' ' in t}",
-                f"has_newline={'\\n' in t or '\\r' in t}",
+                "has_newline=" + str('\n' in t or '\r' in t) + ",
                 f"quoted={quoted_start or quoted_end}",
             ]
             print("VK_USER_ACCESS_TOKEN meta:", ", ".join(meta))
