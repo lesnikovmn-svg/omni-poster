@@ -5,6 +5,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import requests
+
 from .config import load_config
 from .scheduler import select_due
 from .storage import load_posts, serialize_post
@@ -293,6 +295,13 @@ def main(argv: list[str] | None = None) -> int:
     vkx.add_argument("--redirect-uri", required=True, help="redirect_uri used in authorize request")
     vkx.add_argument("--code", required=True, help="authorization code from redirect")
 
+    vkchk = sub.add_parser("vk-check", help="Check VK tokens from secrets/.env (no token output)")
+    vkchk.add_argument(
+        "--check-group",
+        action="store_true",
+        help="Also check VK_ACCESS_TOKEN against VK_GROUP_ID via groups.getById",
+    )
+
     args = parser.parse_args(argv)
     if args.cmd == "run":
         state_path = Path(args.state) if str(args.state).strip() else None
@@ -326,6 +335,78 @@ def main(argv: list[str] | None = None) -> int:
             print("VK_USER_ID=" + str(result.user_id))
         if result.expires_in is not None:
             print("VK_EXPIRES_IN=" + str(result.expires_in))
+        return 0
+    if args.cmd == "vk-check":
+        config = load_config()
+        if not config.vk_user_access_token:
+            print("VK_USER_ACCESS_TOKEN is missing in secrets/.env")
+        else:
+            t = str(config.vk_user_access_token)
+            t_clean = t.strip().strip("'\"")
+            quoted_start = t.startswith(("'", '"'))
+            quoted_end = t.endswith(("'", '"'))
+            meta = [
+                f"len={len(t)}",
+                f"starts_vk1={t.startswith('vk1.')}",
+                f"has_space={' ' in t}",
+                f"has_newline={'\\n' in t or '\\r' in t}",
+                f"quoted={quoted_start or quoted_end}",
+            ]
+            print("VK_USER_ACCESS_TOKEN meta:", ", ".join(meta))
+
+            def _sanitize(s: str) -> str:
+                for secret in (t, t_clean):
+                    if secret and len(secret) >= 12:
+                        s = s.replace(secret, "***")
+                return s
+
+            try:
+                r = requests.post(
+                    "https://api.vk.com/method/users.get",
+                    data={"access_token": t_clean, "v": "5.131"},
+                    timeout=30,
+                )
+                r.raise_for_status()
+                payload = r.json()
+            except Exception as e:
+                print(
+                    "VK_USER_ACCESS_TOKEN: ERROR:",
+                    _sanitize(f"{type(e).__name__}: {e}"),
+                )
+            else:
+                if "error" in payload:
+                    err = payload.get("error") or {}
+                    print("VK_USER_ACCESS_TOKEN: INVALID (error_code=%s) %s" % (err.get("error_code"), err.get("error_msg")))
+                else:
+                    resp = payload.get("response")
+                    if isinstance(resp, list) and resp:
+                        user_id = resp[0].get("id")
+                        print("VK_USER_ACCESS_TOKEN: OK user_id=", user_id)
+                    else:
+                        print("VK_USER_ACCESS_TOKEN: unexpected response shape")
+
+        if bool(args.check_group):
+            if not config.vk_access_token or not config.vk_group_id:
+                print("VK_ACCESS_TOKEN or VK_GROUP_ID missing in secrets/.env")
+            else:
+                try:
+                    r = requests.post(
+                        "https://api.vk.com/method/groups.getById",
+                        data={"access_token": str(config.vk_access_token), "v": "5.131", "group_id": str(config.vk_group_id)},
+                        timeout=30,
+                    )
+                    r.raise_for_status()
+                    payload = r.json()
+                except Exception as e:
+                    print("VK_ACCESS_TOKEN: ERROR:", f"{type(e).__name__}: {e}")
+                else:
+                    if "error" in payload:
+                        err = payload.get("error") or {}
+                        print("VK_ACCESS_TOKEN: INVALID (error_code=%s) %s" % (err.get("error_code"), err.get("error_msg")))
+                    else:
+                        resp = payload.get("response")
+                        ok = isinstance(resp, list) and len(resp) > 0
+                        print("VK_ACCESS_TOKEN:", "OK" if ok else "unexpected response shape")
         return 0
     raise AssertionError("unreachable")
 

@@ -1,6 +1,11 @@
 # VK user token (runbook)
 
-Цель: получить **VK_USER_ACCESS_TOKEN** (user access token) для пользователя `id1039539516`, чтобы работали загрузка фото и постинг в сообщество.
+Цель: получить **VK_USER_ACCESS_TOKEN** (user access token) для пользователя `id1039539516`, чтобы работала **загрузка фото** на стену сообщества.
+
+## Нужны 2 токена
+
+- `VK_ACCESS_TOKEN` — **токен сообщества** (обычно долгоживущий). Нужен для `wall.post` от имени `club229926764`.
+- `VK_USER_ACCESS_TOKEN` — **user token**. Нужен для `photos.getWallUploadServer`/`saveWallPhoto` (иначе будет ошибка `27 method is unavailable with group auth`).
 
 ## Важно
 
@@ -25,12 +30,7 @@ VK_USER_ACCESS_TOKEN=vk1.a....
 ```bash
 cd "/Users/maksimlesnikov/Documents/New project/_omni-poster"
 source .venv/bin/activate
-python - <<'PY'
-import requests
-from omniposter.config import load_config
-c = load_config()
-print(requests.get("https://api.vk.com/method/users.get", params={"access_token": c.vk_user_access_token, "v":"5.131"}, timeout=30).text)
-PY
+python -m omniposter vk-check
 ```
 
 Ожидается `response` с `id: 1039539516`.
@@ -40,3 +40,14 @@ PY
 - вы залогинены не тем аккаунтом, или
 - токен был отозван/невалиден → получите новый на vkhost.
 
+Если пишет `network/DNS error`:
+- проверьте интернет/ВПН/ДНС,
+- попробуйте открыть `https://api.vk.com` в браузере.
+
+## Проверка токена сообщества
+
+Добавьте `VK_ACCESS_TOKEN=...` (токен сообщества) и проверьте:
+
+```bash
+python -m omniposter vk-check --check-group
+```
