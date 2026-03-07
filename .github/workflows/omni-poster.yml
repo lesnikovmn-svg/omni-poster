@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: "*/5 * * * *" # every 5 minutes (best-effort)
 
+concurrency:
+  group: omni-poster
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
