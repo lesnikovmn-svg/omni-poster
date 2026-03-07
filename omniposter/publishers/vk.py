@@ -39,6 +39,7 @@ class VkPublisher:
         return payload["response"]
 
     def post_text(self, *, text: str) -> None:
+        upload_token = self.user_access_token or self.access_token
         self._call(
             "wall.post",
             {
