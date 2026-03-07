@@ -44,9 +44,11 @@ class MaxGatewayPublisher:
             try:
                 photo_data = self._upload_photo(p)
                 # MAX возвращает photos список
-                photos = photo_data.get("photos") or []
+                photos = photo_data.get("photos") or {}
+                if isinstance(photos, dict):
+                    photos = list(photos.values())
                 if photos:
-                    token = photos[0].get("token")
+                    token = photos[0].get("token") if isinstance(photos[0], dict) else None
                     if token:
                         attachments.append({"type": "image", "payload": {"token": token}})
             except Exception as e:
