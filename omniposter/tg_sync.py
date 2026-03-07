@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 
 from .publishers.vk import VkPublisher
+from .publishers.max_gateway import MaxGatewayPublisher
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,9 @@ class TgSyncConfig:
     vk_access_token: str | None
     vk_user_access_token: str | None
     vk_group_id: int | None
+    max_api_token: str | None = None
+    max_api_base: str = "https://botapi.max.ru"
+    max_chat_id: str | None = None
     links_file: str | None = None
     timeout_s: int = 30
 
@@ -147,6 +151,11 @@ class TgSync:
             group_id=self._config.vk_group_id,
             user_access_token=self._config.vk_user_access_token,
         )
+        max_pub = (
+            MaxGatewayPublisher(token=self._config.max_api_token, base_url=self._config.max_api_base)
+            if self._config.max_api_token and self._config.max_chat_id
+            else None
+        )
 
         offset_state = self._load_json(offset_state_path, {"offset": 0})
         offset = int(offset_state.get("offset") or 0)
@@ -253,6 +262,9 @@ class TgSync:
                 vk.post_photos(text=text, image_paths=paths)
             else:
                 vk.post_text(text=text)
+
+            if max_pub and self._config.max_chat_id:
+                max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
 
             seen[key] = "posted"
             processed += 1

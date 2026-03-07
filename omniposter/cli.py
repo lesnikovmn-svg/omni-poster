@@ -287,6 +287,11 @@ def main(argv: list[str] | None = None) -> int:
         default="secrets/tg_links.json",
         help="JSON file with links to append when reposting to VK",
     )
+    tg.add_argument(
+        "--max-chat-id",
+        default="",
+        help="MAX chat_id to repost to (e.g. -68063930876115)",
+    )
     tg.add_argument("--dry-run", action="store_true", help="Do not send, only print actions")
 
     vkx = sub.add_parser("vk-exchange", help="Exchange VK OAuth code for user access_token")
@@ -314,6 +319,9 @@ def main(argv: list[str] | None = None) -> int:
                 vk_access_token=config.vk_access_token,
                 vk_user_access_token=config.vk_user_access_token,
                 vk_group_id=config.vk_group_id,
+                max_api_token=config.max_api_token,
+                max_api_base=config.max_api_base,
+                max_chat_id=str(args.max_chat_id).strip() or None,
                 links_file=str(args.links_file).strip() or None,
             )
         )
