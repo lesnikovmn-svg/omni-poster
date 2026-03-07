@@ -73,7 +73,7 @@ class VkPublisher:
             )
             upload_url = server["upload_url"]
             try:
-                upload_resp = requests.post(upload_url, files={"photo": (p.name, p.read_bytes())}, timeout=self.timeout_s)
+                upload_resp = requests.post(upload_url, files={"photo": (p.name, p.read_bytes(), "image/jpeg")}, timeout=self.timeout_s)
             except RequestException as e:
                 raise RuntimeError("VK upload failed: network/DNS error") from e
             upload_resp.raise_for_status()
