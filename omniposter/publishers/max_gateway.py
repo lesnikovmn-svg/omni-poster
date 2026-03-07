@@ -29,6 +29,7 @@ class MaxGatewayPublisher:
         with open(image_path, "rb") as f:
             r2 = requests.post(upload_url, files={"data": (image_path.name, f, "image/jpeg")}, timeout=self.timeout_s)
         r2.raise_for_status()
+        print(f"MAX upload response: {r2.json()}")
         return r2.json()
 
     def send_message(self, *, chat_id: str, text: str) -> None:
