@@ -264,7 +264,10 @@ class TgSync:
                 vk.post_text(text=text)
 
             if max_pub and self._config.max_chat_id:
-                max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
+                if paths:
+                    max_pub.send_photos(chat_id=self._config.max_chat_id, image_paths=paths, text=text)
+                else:
+                    max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
 
             seen[key] = "posted"
             processed += 1
