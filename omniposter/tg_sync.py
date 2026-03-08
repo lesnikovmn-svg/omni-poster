@@ -251,6 +251,11 @@ class TgSync:
                     break
             text = self._append_links(self._fix_tg_mentions(text))
 
+            # debug
+            for m in group:
+                keys = [k for k in m.keys() if k not in ('date','message_id','chat','from','sender_chat')]
+                if any(k in m for k in ('video','animation','document')):
+                    print(f'[DEBUG] msg keys: {keys}')
             file_ids: list[str] = []
             video_ids: list[str] = []
             for m in group:
