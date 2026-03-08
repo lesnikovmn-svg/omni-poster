@@ -78,6 +78,7 @@ class VkPublisher:
                 raise RuntimeError("VK upload failed: network/DNS error") from e
             upload_resp.raise_for_status()
             upload_data = upload_resp.json()
+            print(f"VK upload response: {upload_data!r}")
             if not all(k in upload_data for k in ("server", "photo", "hash")):
                 raise RuntimeError(f"VK upload response malformed: {upload_data!r}")
             saved = self._call(
