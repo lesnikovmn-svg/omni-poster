@@ -43,7 +43,7 @@ jobs:
           python -m omniposter run --posts ./posts/my_avto5 --state ./.state/my_avto5.json
           python -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_avto_optimal.json
           python -m omniposter tg-sync --source @MY_Avto5 --offset-state ./.state/tg_offset_my_avto5.json --seen-state ./.state/tg_seen_my_avto5.json --max-chat-id -68063930876115
-          python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/tg_offset_my_avto_optimal.json --seen-state ./.state/tg_seen_my_avto_optimal.json --max-chat-id -68063930876115
+          python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/tg_offset_my_avto_optimal.json --seen-state ./.state/tg_seen_my_avto_optimal.json --max-chat-id -70966889742547
 
       - name: Commit state
         run: |
