@@ -93,6 +93,12 @@ class TgSync:
             return ("chat_id", int(s))
         return ("username", s)
 
+    def _pick_video_file_id(self, message: dict) -> str | None:
+        video = message.get("video")
+        if isinstance(video, dict):
+            return video.get("file_id")
+        return None
+
     def _pick_biggest_photo_file_id(self, message: dict) -> str | None:
         photos = message.get("photo")
         if not isinstance(photos, list) or not photos:
@@ -246,27 +252,45 @@ class TgSync:
             text = self._append_links(self._fix_tg_mentions(text))
 
             file_ids: list[str] = []
+            video_ids: list[str] = []
             for m in group:
                 fid = self._pick_biggest_photo_file_id(m)
                 if fid:
                     file_ids.append(fid)
+                vid = self._pick_video_file_id(m)
+                if vid:
+                    video_ids.append(vid)
 
             if dry_run:
-                print(f"[dry-run] tg-sync {source} -> vk: {key} photos={len(file_ids)}")
+                print(f"[dry-run] tg-sync {source} -> vk: {key} photos={len(file_ids)} videos={len(video_ids)}")
                 processed += 1
                 continue
 
+            dest_dir = Path(".state/tg_media") / key.replace(":", "_")
+            paths: list[Path] = []
+            video_paths: list[Path] = []
+
             if file_ids:
-                dest_dir = Path(".state/tg_media") / key.replace(":", "_")
                 paths = [self._download_file(fid, dest_dir) for fid in file_ids]
+
+            if video_ids:
+                video_paths = [self._download_file(vid, dest_dir) for vid in video_ids]
+                for vp in video_paths:
+                    if not vp.suffix:
+                        vp = vp.rename(vp.with_suffix('.mp4'))
+
+            if paths:
                 vk.post_photos(text=text, image_paths=paths)
+            elif video_paths:
+                vk.post_video(text=text, video_path=video_paths[0])
             else:
                 vk.post_text(text=text)
 
             if max_pub and self._config.max_chat_id:
-                _paths = locals().get('paths') or []
-                if _paths:
-                    max_pub.send_photos(chat_id=self._config.max_chat_id, image_paths=_paths, text=text)
+                if paths:
+                    max_pub.send_photos(chat_id=self._config.max_chat_id, image_paths=paths, text=text)
+                elif video_paths:
+                    max_pub.send_video(chat_id=self._config.max_chat_id, video_path=video_paths[0], text=text)
                 else:
                     max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
 

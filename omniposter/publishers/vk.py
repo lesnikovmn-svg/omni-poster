@@ -105,3 +105,18 @@ class VkPublisher:
             },
             token=upload_token,
         )
+
+    def post_video(self, *, text: str, video_path: Path) -> None:
+        upload_token = self.user_access_token or self.access_token
+        # 1. Получаем upload URL
+        r = self._call("video.save", {
+            "group_id": self.group_id,
+            "name": video_path.stem,
+            "description": text,
+            "wallpost": 1,
+        }, token=upload_token)
+        upload_url = r["upload_url"]
+        # 2. Загружаем видео
+        with open(video_path, "rb") as f:
+            resp = requests.post(upload_url, files={"video_file": (video_path.name, f, "video/mp4")}, timeout=120)
+        resp.raise_for_status()

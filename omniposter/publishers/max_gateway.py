@@ -61,3 +61,33 @@ class MaxGatewayPublisher:
             payload["attachments"] = attachments
         resp = requests.post(url, params=params, json=payload, timeout=self.timeout_s)
         resp.raise_for_status()
+
+    def send_video(self, *, chat_id: str, video_path: Path, text: str) -> None:
+        # Получаем URL для загрузки видео
+        r = requests.post(
+            self._url("uploads"),
+            params={"access_token": self.token, "type": "video"},
+            timeout=self.timeout_s,
+        )
+        r.raise_for_status()
+        upload_url = r.json()["url"]
+
+        # Загружаем видео
+        with open(video_path, "rb") as f:
+            r2 = requests.post(upload_url, files={"data": (video_path.name, f, "video/mp4")}, timeout=120)
+        r2.raise_for_status()
+        upload_data = r2.json()
+
+        # Получаем токен видео
+        videos = upload_data.get("videos") or {}
+        if isinstance(videos, dict):
+            videos = list(videos.values())
+        token = videos[0].get("token") if videos and isinstance(videos[0], dict) else None
+
+        url = self._url("messages")
+        params = {"access_token": self.token, "chat_id": chat_id}
+        payload: dict = {"text": text}
+        if token:
+            payload["attachments"] = [{"type": "video", "payload": {"token": token}}]
+        resp = requests.post(url, params=params, json=payload, timeout=self.timeout_s)
+        resp.raise_for_status()
