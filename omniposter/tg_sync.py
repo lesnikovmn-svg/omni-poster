@@ -287,17 +287,17 @@ class TgSync:
 
             if paths:
                 vk.post_photos(text=text, image_paths=paths)
-            elif video_paths:
-                vk.post_video(text=text, video_path=video_paths[0])
-            else:
+            if video_paths:
+                vk.post_video(text=text if not paths else '', video_path=video_paths[0])
+            if not paths and not video_paths:
                 vk.post_text(text=text)
 
             if max_pub and self._config.max_chat_id:
                 if paths:
                     max_pub.send_photos(chat_id=self._config.max_chat_id, image_paths=paths, text=text)
-                elif video_paths:
-                    max_pub.send_video(chat_id=self._config.max_chat_id, video_path=video_paths[0], text=text)
-                else:
+                if video_paths:
+                    max_pub.send_video(chat_id=self._config.max_chat_id, video_path=video_paths[0], text=text if not paths else '')
+                if not paths and not video_paths:
                     max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
 
             seen[key] = "posted"
