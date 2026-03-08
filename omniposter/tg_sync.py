@@ -259,12 +259,13 @@ class TgSync:
             file_ids: list[str] = []
             video_ids: list[str] = []
             for m in group:
-                fid = self._pick_biggest_photo_file_id(m)
-                if fid:
-                    file_ids.append(fid)
                 vid = self._pick_video_file_id(m)
                 if vid:
                     video_ids.append(vid)
+                    continue  # не обрабатываем видео как фото
+                fid = self._pick_biggest_photo_file_id(m)
+                if fid:
+                    file_ids.append(fid)
 
             if dry_run:
                 print(f"[dry-run] tg-sync {source} -> vk: {key} photos={len(file_ids)} videos={len(video_ids)}")
