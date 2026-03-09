@@ -26,11 +26,6 @@ class VkPublisher:
         except RequestException as e:
             raise RuntimeError(f"VK request failed ({method}): network/DNS error") from e
         resp.raise_for_status()
-        video_id = r.get("video_id")
-        owner_id = r.get("owner_id")
-        if owner_id and video_id:
-            return f"https://vk.com/video{owner_id}_{video_id}"
-        return None
         payload = resp.json()
         if "error" in payload:
             err = payload["error"]
@@ -123,6 +118,11 @@ class VkPublisher:
         }, token=upload_token)
         upload_url = r["upload_url"]
         # 2. Загружаем видео
+        video_id = r.get("video_id")
+        owner_id = r.get("owner_id")
         with open(video_path, "rb") as f:
             resp = requests.post(upload_url, files={"video_file": (video_path.name, f, "video/mp4")}, timeout=120)
         resp.raise_for_status()
+        if owner_id and video_id:
+            return f"https://vk.com/video{owner_id}_{video_id}"
+        return None
