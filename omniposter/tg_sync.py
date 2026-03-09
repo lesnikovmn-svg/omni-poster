@@ -167,6 +167,7 @@ class TgSync:
         offset = int(offset_state.get("offset") or 0)
         seen_state = self._load_json(seen_state_path, {"seen": {}})
         seen = seen_state.get("seen") or {}
+        pending_albums: dict[str, list[dict]] = seen_state.get("pending_albums") or {}
         if not isinstance(seen, dict):
             seen = {}
 
@@ -174,7 +175,7 @@ class TgSync:
 
         resp = requests.get(
             self._tg_api("getUpdates"),
-            params={"timeout": 0, "offset": offset},
+            params={"timeout": 0, "offset": offset, "limit": 100},
             timeout=self._config.timeout_s,
         )
         resp.raise_for_status()
@@ -226,11 +227,33 @@ class TgSync:
             else:
                 singles.append(msg)
 
+        # Объединяем с pending альбомами из прошлого запуска
+        for mgid, msgs in pending_albums.items():
+            if mgid in albums:
+                existing_ids = {m.get("message_id") for m in albums[mgid]}
+                for m in msgs:
+                    if m.get("message_id") not in existing_ids:
+                        albums[mgid].append(m)
+            else:
+                albums[mgid] = msgs
+
         def _msg_key(m: dict) -> str:
             chat = m.get("chat") or {}
             return f"tg:{chat.get('id')}:{m.get('message_id')}"
 
-        all_items: list[list[dict]] = list(albums.values()) + [[m] for m in singles]
+        # Откладываем альбомы где есть видео но нет фото — ждём следующего запуска
+        new_pending: dict[str, list[dict]] = {}
+        complete_albums = {}
+        for mgid, msgs in albums.items():
+            has_photo = any(self._pick_biggest_photo_file_id(m) for m in msgs)
+            has_video = any(self._pick_video_file_id(m) for m in msgs)
+            if has_video and not has_photo:
+                new_pending[mgid] = msgs
+            else:
+                complete_albums[mgid] = msgs
+        pending_albums = new_pending
+
+        all_items: list[list[dict]] = list(complete_albums.values()) + [[m] for m in singles]
         all_items.sort(key=lambda group: int((group[0].get("message_id") or 0)))
 
         processed = 0
@@ -306,7 +329,7 @@ class TgSync:
 
         if not dry_run:
             self._save_json(offset_state_path, {"offset": offset})
-            self._save_json(seen_state_path, {"seen": seen})
+            self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
 
         if processed == 0:
             print(
