@@ -62,7 +62,9 @@ class MaxGatewayPublisher:
         resp = requests.post(url, params=params, json=payload, timeout=self.timeout_s)
         resp.raise_for_status()
 
-    def send_video(self, *, chat_id: str, video_path: Path, text: str) -> None:
-        # MAX не поддерживает загрузку видео файлом — отправляем только текст
-        if text:
-            self.send_message(chat_id=chat_id, text=text)
+    def send_video(self, *, chat_id: str, video_path: Path, text: str, video_url: str | None = None) -> None:
+        msg = text
+        if video_url:
+            msg = (msg + "\n" + video_url).strip()
+        if msg:
+            self.send_message(chat_id=chat_id, text=msg)

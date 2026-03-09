@@ -26,6 +26,11 @@ class VkPublisher:
         except RequestException as e:
             raise RuntimeError(f"VK request failed ({method}): network/DNS error") from e
         resp.raise_for_status()
+        video_id = r.get("video_id")
+        owner_id = r.get("owner_id")
+        if owner_id and video_id:
+            return f"https://vk.com/video{owner_id}_{video_id}"
+        return None
         payload = resp.json()
         if "error" in payload:
             err = payload["error"]
@@ -107,7 +112,7 @@ class VkPublisher:
             token=upload_token,
         )
 
-    def post_video(self, *, text: str, video_path: Path) -> None:
+    def post_video(self, *, text: str, video_path: Path) -> str | None:
         upload_token = self.user_access_token or self.access_token
         # 1. Получаем upload URL
         r = self._call("video.save", {
