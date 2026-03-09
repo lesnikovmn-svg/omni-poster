@@ -117,15 +117,23 @@ class VkPublisher:
             "group_id": self.group_id,
             "name": video_path.stem,
             "description": text,
-            "wallpost": 1,
+            "wallpost": 0,
         }, token=upload_token)
         upload_url = r["upload_url"]
-        # 2. Загружаем видео
         video_id = r.get("video_id")
         owner_id = r.get("owner_id")
+        # 2. Загружаем видео
         with open(video_path, "rb") as f:
             resp = requests.post(upload_url, files={"video_file": (video_path.name, f, "video/mp4")}, timeout=120)
         resp.raise_for_status()
+        # 3. Постим на стену с текстом
         if owner_id and video_id:
+            attachment = f"video{owner_id}_{video_id}"
+            self._call("wall.post", {
+                "owner_id": -abs(int(self.group_id)),
+                "from_group": 1,
+                "message": text,
+                "attachments": attachment,
+            }, token=upload_token)
             return f"https://vk.com/video{owner_id}_{video_id}"
         return None
