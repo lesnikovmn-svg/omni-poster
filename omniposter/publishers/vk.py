@@ -81,6 +81,9 @@ class VkPublisher:
             print(f"VK upload response: {upload_data!r}")
             if not all(k in upload_data for k in ("server", "photo", "hash")):
                 raise RuntimeError(f"VK upload response malformed: {upload_data!r}")
+            if not upload_data["photo"]:
+                print(f"VK upload: empty photo response, skipping {p.name}")
+                continue
             saved = self._call(
                 "photos.saveWallPhoto",
                 {
