@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import requests
@@ -21,6 +21,10 @@ class TgSyncConfig:
     max_chat_id: str | None = None
     links_file: str | None = None
     timeout_s: int = 30
+    # AI rewrite
+    anthropic_api_key: str | None = None
+    ai_rewrite: bool = False
+    ai_rewrite_prompt: str | None = None
 
 
 class TgSync:
@@ -51,10 +55,6 @@ class TgSync:
         import re
         return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
 
-    def _fix_tg_mentions(self, text: str) -> str:
-        import re
-        return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
-
     def _append_links(self, text: str) -> str:
         if not self._links:
             return text
@@ -65,6 +65,21 @@ class TgSync:
             if label and url:
                 lines.append(f"{label} {url}")
         return "\n".join(lines)
+
+    def _ai_rewrite(self, text: str) -> str:
+        """Переписывает текст поста через Claude API."""
+        if not text.strip():
+            return text
+        try:
+            from .ai_rewriter import AIRewriter
+            rewriter = AIRewriter(api_key=self._config.anthropic_api_key)
+            rewritten = rewriter.rewrite(text, prompt=self._config.ai_rewrite_prompt)
+            print(f"[ai-rewrite] original: {text[:80]}...")
+            print(f"[ai-rewrite] rewritten: {rewritten[:80]}...")
+            return rewritten
+        except Exception as e:
+            print(f"[ai-rewrite] ошибка, используем оригинал: {e}")
+            return text
 
     def _tg_api(self, method: str) -> str:
         if not self._config.telegram_bot_token:
@@ -142,14 +157,7 @@ class TgSync:
         dest.write_bytes(r.content)
         return dest
 
-    def run(
-        self,
-        *,
-        source: str,
-        offset_state_path: Path,
-        seen_state_path: Path,
-        dry_run: bool,
-    ) -> int:
+    def run(self, *, source: str, offset_state_path: Path, seen_state_path: Path, dry_run: bool) -> int:
         if not self._config.vk_access_token or not self._config.vk_group_id:
             raise RuntimeError("VK_ACCESS_TOKEN and VK_GROUP_ID are required for tg-sync -> vk")
         vk = VkPublisher(
@@ -187,8 +195,6 @@ class TgSync:
             raise RuntimeError(f"Telegram getUpdates malformed: {payload!r}")
 
         matched_messages = 0
-
-        # advance offset (only persist when not dry_run)
         max_update_id = None
         for u in updates:
             if isinstance(u, dict) and "update_id" in u:
@@ -198,7 +204,6 @@ class TgSync:
         if max_update_id is not None:
             offset = max_update_id + 1
 
-        # collect channel posts, group albums by media_group_id
         albums: dict[str, list[dict]] = {}
         singles: list[dict] = []
 
@@ -211,7 +216,6 @@ class TgSync:
             chat = msg.get("chat") or {}
             if not isinstance(chat, dict):
                 continue
-
             if stype == "chat_id":
                 if int(chat.get("id") or 0) != int(sval):
                     continue
@@ -219,7 +223,6 @@ class TgSync:
                 username = chat.get("username")
                 if not username or str(username).lower() != str(sval).lower():
                     continue
-
             matched_messages += 1
             mgid = msg.get("media_group_id")
             if mgid:
@@ -227,7 +230,6 @@ class TgSync:
             else:
                 singles.append(msg)
 
-        # Объединяем с pending альбомами из прошлого запуска
         for mgid, msgs in pending_albums.items():
             if mgid in albums:
                 existing_ids = {m.get("message_id") for m in albums[mgid]}
@@ -241,7 +243,6 @@ class TgSync:
             chat = m.get("chat") or {}
             return f"tg:{chat.get('id')}:{m.get('message_id')}"
 
-        # Откладываем альбомы где есть видео но нет фото — ждём следующего запуска
         new_pending: dict[str, list[dict]] = {}
         complete_albums = {}
         for mgid, msgs in albums.items():
@@ -272,26 +273,34 @@ class TgSync:
                 if m.get("text"):
                     text = str(m.get("text"))
                     break
-            text = self._append_links(self._fix_tg_mentions(text))
 
-            # debug
+            text = self._fix_tg_mentions(text)
+
+            # ── AI переработка текста (если включена) ──
+            if self._config.ai_rewrite:
+                text = self._ai_rewrite(text)
+
+            text = self._append_links(text)
+
             for m in group:
                 keys = [k for k in m.keys() if k not in ('date','message_id','chat','from','sender_chat')]
                 if any(k in m for k in ('video','animation','document')):
                     print(f'[DEBUG] msg keys: {keys}')
+
             file_ids: list[str] = []
             video_ids: list[str] = []
             for m in group:
                 vid = self._pick_video_file_id(m)
                 if vid:
                     video_ids.append(vid)
-                    continue  # не обрабатываем видео как фото
+                    continue
                 fid = self._pick_biggest_photo_file_id(m)
                 if fid:
                     file_ids.append(fid)
 
             if dry_run:
                 print(f"[dry-run] tg-sync {source} -> vk: {key} photos={len(file_ids)} videos={len(video_ids)}")
+                print(f"[dry-run] text: {text[:120]}")
                 processed += 1
                 continue
 
@@ -301,7 +310,6 @@ class TgSync:
 
             if file_ids:
                 paths = [self._download_file(fid, dest_dir) for fid in file_ids]
-
             if video_ids:
                 video_paths = [self._download_file(vid, dest_dir) for vid in video_ids]
                 for vp in video_paths:
@@ -332,13 +340,7 @@ class TgSync:
             self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
 
         if processed == 0:
-            print(
-                f"No new Telegram posts for {source}. "
-                f"updates={len(updates)} matched={matched_messages} skipped_seen={skipped_seen}."
-            )
+            print(f"No new Telegram posts for {source}. updates={len(updates)} matched={matched_messages} skipped_seen={skipped_seen}.")
             if matched_messages == 0:
-                print(
-                    "Tip: bots do not backfill history. Publish a new post after adding the bot as admin, "
-                    "then run tg-sync again."
-                )
+                print("Tip: bots do not backfill history. Publish a new post after adding the bot as admin, then run tg-sync again.")
         return 0
