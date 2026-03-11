@@ -303,10 +303,14 @@ class TgSync:
                 paths = [self._download_file(fid, dest_dir) for fid in file_ids]
 
             if video_ids:
-                video_paths = [self._download_file(vid, dest_dir) for vid in video_ids]
-                for vp in video_paths:
-                    if not vp.suffix:
-                        vp = vp.rename(vp.with_suffix('.mp4'))
+                for vid in video_ids:
+                    try:
+                        vp = self._download_file(vid, dest_dir)
+                        if not vp.suffix:
+                            vp = vp.rename(vp.with_suffix('.mp4'))
+                        video_paths.append(vp)
+                    except Exception as e:
+                        print(f"[WARN] video download failed, skipping: {e}")
 
             if paths:
                 vk.post_photos(text=text, image_paths=paths)
