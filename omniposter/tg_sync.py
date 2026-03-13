@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
-from requests import RequestException
 
 from .publishers.vk import VkPublisher
 from .publishers.max_gateway import MaxGatewayPublisher
@@ -52,14 +51,9 @@ class TgSync:
         import re
         return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
 
-    def _validate_bot_token(self) -> None:
-        if not self._config.telegram_bot_token:
-            raise RuntimeError("TELEGRAM_BOT_TOKEN is required for tg-sync")
-        t = str(self._config.telegram_bot_token).strip()
-        if t in {"YOUR_BOT_TOKEN", "НОВЫЙ_ТОКЕН", "NEW_TOKEN"}:
-            raise RuntimeError("TELEGRAM_BOT_TOKEN looks like a placeholder; paste the real token from @BotFather")
-        if ":" not in t or not t.split(":", 1)[0].isdigit():
-            raise RuntimeError("TELEGRAM_BOT_TOKEN format looks wrong (expected like 123456:AA...)")
+    def _fix_tg_mentions(self, text: str) -> str:
+        import re
+        return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
 
     def _append_links(self, text: str) -> str:
         if not self._links:
@@ -73,11 +67,13 @@ class TgSync:
         return "\n".join(lines)
 
     def _tg_api(self, method: str) -> str:
-        self._validate_bot_token()
+        if not self._config.telegram_bot_token:
+            raise RuntimeError("TELEGRAM_BOT_TOKEN is required for tg-sync")
         return f"https://api.telegram.org/bot{self._config.telegram_bot_token}/{method}"
 
     def _tg_file_url(self, file_path: str) -> str:
-        self._validate_bot_token()
+        if not self._config.telegram_bot_token:
+            raise RuntimeError("TELEGRAM_BOT_TOKEN is required for tg-sync")
         return f"https://api.telegram.org/file/bot{self._config.telegram_bot_token}/{file_path}"
 
     def _load_json(self, path: Path, default):
@@ -122,16 +118,9 @@ class TgSync:
         return best
 
     def _get_file_path(self, file_id: str) -> str:
-        try:
-            resp = requests.get(
-                self._tg_api("getFile"),
-                params={"file_id": file_id},
-                timeout=self._config.timeout_s,
-            )
-            resp.raise_for_status()
-            payload = resp.json()
-        except RequestException:
-            raise RuntimeError("Telegram getFile failed: network/DNS/HTTP error") from None
+        resp = requests.get(self._tg_api("getFile"), params={"file_id": file_id}, timeout=self._config.timeout_s)
+        resp.raise_for_status()
+        payload = resp.json()
         if not payload.get("ok"):
             raise RuntimeError(f"Telegram getFile failed: {payload!r}")
         result = payload.get("result") or {}
@@ -148,12 +137,9 @@ class TgSync:
         if '.' not in name:
             name = name + '.jpg'
         dest = dest_dir / name
-        try:
-            r = requests.get(url, timeout=self._config.timeout_s)
-            r.raise_for_status()
-            dest.write_bytes(r.content)
-        except RequestException:
-            raise RuntimeError("Telegram download failed: network/DNS/HTTP error") from None
+        r = requests.get(url, timeout=self._config.timeout_s)
+        r.raise_for_status()
+        dest.write_bytes(r.content)
         return dest
 
     def run(
@@ -187,16 +173,13 @@ class TgSync:
 
         stype, sval = self._extract_source_key(source)
 
-        try:
-            resp = requests.get(
-                self._tg_api("getUpdates"),
-                params={"timeout": 0, "offset": offset, "limit": 100},
-                timeout=self._config.timeout_s,
-            )
-            resp.raise_for_status()
-            payload = resp.json()
-        except RequestException:
-            raise RuntimeError("Telegram getUpdates failed: network/DNS/HTTP error") from None
+        resp = requests.get(
+            self._tg_api("getUpdates"),
+            params={"timeout": 0, "offset": offset, "limit": 100},
+            timeout=self._config.timeout_s,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
         if not payload.get("ok"):
             raise RuntimeError(f"Telegram getUpdates failed: {payload!r}")
         updates = payload.get("result") or []
