@@ -1,5 +1,5 @@
-import time
 from __future__ import annotations
+import time
 
 import json
 from dataclasses import dataclass
