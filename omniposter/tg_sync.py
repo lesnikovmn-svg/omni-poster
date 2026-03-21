@@ -1,3 +1,4 @@
+import time
 from __future__ import annotations
 
 import json
@@ -246,11 +247,17 @@ class TgSync:
         # Откладываем альбомы где есть видео но нет фото — ждём следующего запуска
         new_pending: dict[str, list[dict]] = {}
         complete_albums = {}
+        now_ts = int(time.time())
         for mgid, msgs in albums.items():
             has_photo = any(self._pick_biggest_photo_file_id(m) for m in msgs)
             has_video = any(self._pick_video_file_id(m) for m in msgs)
             if has_video and not has_photo:
-                new_pending[mgid] = msgs
+                # Если альбом в pending дольше 10 минут — постим как есть
+                msg_ts = int(msgs[0].get("date") or 0)
+                if now_ts - msg_ts > 600:
+                    complete_albums[mgid] = msgs
+                else:
+                    new_pending[mgid] = msgs
             else:
                 complete_albums[mgid] = msgs
         pending_albums = new_pending
