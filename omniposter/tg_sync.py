@@ -237,8 +237,10 @@ class TgSync:
             else:
                 albums[mgid] = msgs
 
-        def _msg_key(m: dict) -> str:
+        def _msg_key(m: dict, mgid: str | None = None) -> str:
             chat = m.get("chat") or {}
+            if mgid:
+                return f"tg:{chat.get('id')}:album:{mgid}"
             return f"tg:{chat.get('id')}:{m.get('message_id')}"
 
         # Откладываем альбомы где есть видео но нет фото — ждём следующего запуска
@@ -253,13 +255,15 @@ class TgSync:
                 complete_albums[mgid] = msgs
         pending_albums = new_pending
 
-        all_items: list[list[dict]] = list(complete_albums.values()) + [[m] for m in singles]
-        all_items.sort(key=lambda group: int((group[0].get("message_id") or 0)))
+        all_items: list[tuple[list[dict], str | None]] = [
+            (msgs, mgid) for mgid, msgs in complete_albums.items()
+        ] + [([m], None) for m in singles]
+        all_items.sort(key=lambda gi: int((gi[0][0].get("message_id") or 0)))
 
         processed = 0
         skipped_seen = 0
-        for group in all_items:
-            key = _msg_key(group[0])
+        for group, mgid in all_items:
+            key = _msg_key(group[0], mgid)
             if seen.get(key):
                 skipped_seen += 1
                 continue
