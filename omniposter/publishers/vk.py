@@ -123,9 +123,13 @@ class VkPublisher:
         video_id = r.get("video_id")
         owner_id = r.get("owner_id")
         # 2. Загружаем видео
-        with open(video_path, "rb") as f:
-            resp = requests.post(upload_url, files={"video_file": (video_path.name, f, "video/mp4")}, timeout=120)
-        resp.raise_for_status()
+        try:
+            with open(video_path, "rb") as f:
+                resp = requests.post(upload_url, files={"video_file": (video_path.name, f, "video/mp4")}, timeout=120)
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"[WARN] VK video upload failed, skipping: {e}")
+            return None
         # 3. Постим на стену с текстом
         if owner_id and video_id:
             attachment = f"video{owner_id}_{video_id}"
