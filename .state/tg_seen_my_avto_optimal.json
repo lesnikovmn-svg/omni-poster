@@ -88,5 +88,92 @@
     "tg:-1002714006327:album:14197714259957522": "posted",
     "tg:-1002714006327:album:14197718211069034": "posted"
   },
-  "pending_albums": {}
+  "pending_albums": {
+    "14199615639600482": [
+      {
+        "message_id": 1369,
+        "sender_chat": {
+          "id": -1002714006327,
+          "title": "My_Avto_Optimal",
+          "username": "My_Avto_Optimal",
+          "type": "channel"
+        },
+        "chat": {
+          "id": -1002714006327,
+          "title": "My_Avto_Optimal",
+          "username": "My_Avto_Optimal",
+          "type": "channel"
+        },
+        "date": 1774951954,
+        "media_group_id": "14199615639600482",
+        "video": {
+          "duration": 34,
+          "width": 1280,
+          "height": 720,
+          "file_name": "微信视频2026-03-29_204552_033.mp4",
+          "mime_type": "video/mp4",
+          "thumbnail": {
+            "file_id": "AAMCAgADIQUABKHEczcAAgVZacueEoSeqRKuCNAl71YTcf1dc_cAAqSTAAISP2BKe-mgKMcWIY0BAAdtAAM6BA",
+            "file_unique_id": "AQADpJMAAhI_YEpy",
+            "file_size": 9902,
+            "width": 320,
+            "height": 180
+          },
+          "thumb": {
+            "file_id": "AAMCAgADIQUABKHEczcAAgVZacueEoSeqRKuCNAl71YTcf1dc_cAAqSTAAISP2BKe-mgKMcWIY0BAAdtAAM6BA",
+            "file_unique_id": "AQADpJMAAhI_YEpy",
+            "file_size": 9902,
+            "width": 320,
+            "height": 180
+          },
+          "file_id": "BAACAgIAAyEFAAShxHM3AAIFWWnLnhKEnqkSrgjQJe9WE3H9XXP3AAKkkwACEj9gSnvpoCjHFiGNOgQ",
+          "file_unique_id": "AgADpJMAAhI_YEo",
+          "file_size": 3434563
+        },
+        "caption": "❗️Chang'an CS35 PLUS Joy Edition 1.4T Luxury (VIN: 005125)❗️\nДата производства: 03.2023 (март 2023 года)\nПробег: 42 000 км\nКомплектация: MID 2WD\nТип кузова: 5-дверный SUV, 5 мест\nДвигатель: бензиновый 1.4T, 116 кВт (158 л.с.)\nКоробка передач: 7-ступенчатая роботизированная (DCT, мокрое сцепление)\nПривод: передний (2WD)\nЦена в Москве под ключ: 1 553 210 ₽\nГород нахождения: Суйфуньхэ\n⭐️ ТОП-оснащение ⭐️\n• Одинарный люк\n• Рейлинги на крыше\n• Кожаный многофункциональный руль\n• 10,25-дюймовая полностью цифровая приборная панель\n• 10,25-дюймовый центральный дисплей\n• Комбинированная кожано-тканевая обивка сидений\n• Подогрев передних сидений\n• Бесключевой доступ + запуск кнопкой\n• Камера заднего вида + задний парктроник\n• Круиз-контроль\n• Автоматическое удержание Auto Hold\n• Помощь при старте на подъёме + помощь при спуске\n• Светодиодные фары + ДХО\n• Автоматический свет фар\n• Подогрев и электропривод складывания зеркал\n• Датчики дождя\n• Автоматический кондиционер + фильтр PM2.5\n⚠️ Честно: оригинальный ЛКП (без ремонта), техническая часть без повреждений, состояние отличное!\nПочему именно MY_Avto?\nМы не просто продаём автомобили. Мы тщательно подбираем машину, которая на 100% соответствует вашим задачам, бюджету, стилю вождения и ожиданиям. Каждый экземпляр проходит полную проверку по всем параметрам — чтобы вы получили именно то, что искали, без скрытых сюрпризов и лишних вопросов.\nФото/видео 360°, осмотр после доставки, точный расчёт под ключ, помощь с выбором — пишите прямо сейчас!\n📲 Максим: @LesnikovM | +7 938 409-67-08 (Краснодар) — https://t.me/LesnikovM\n📲 Антон: @Tohakmv | +7 963 383-79-28 (Пятигорск) — https://t.me/Tohakmv\nПремиум сегмент авто\nПрисоединяйтесь:\nhttps://max.ru/join/DXEGJWNaZPpj8WYi3eIMqJLriw-T0hF5ddCfUN2tk7I\nhttps://vk.com/my_avto5\nhttps://max.ru/join/I6lMgCqeGtn0n5DPhhHDm-qQkor3b8klbTZn9iPTcLY\nInstagram: https://www.instagram.com/my_avto5/\nMY_Avto — ваш надёжный партнёр в выборе идеального авто! 🚗",
+        "caption_entities": [
+          {
+            "offset": 1513,
+            "length": 10,
+            "type": "mention"
+          },
+          {
+            "offset": 1557,
+            "length": 22,
+            "type": "url"
+          },
+          {
+            "offset": 1590,
+            "length": 8,
+            "type": "mention"
+          },
+          {
+            "offset": 1632,
+            "length": 20,
+            "type": "url"
+          },
+          {
+            "offset": 1691,
+            "length": 63,
+            "type": "url"
+          },
+          {
+            "offset": 1755,
+            "length": 23,
+            "type": "url"
+          },
+          {
+            "offset": 1779,
+            "length": 63,
+            "type": "url"
+          },
+          {
+            "offset": 1854,
+            "length": 35,
+            "type": "url"
+          }
+        ]
+      }
+    ]
+  }
 }
