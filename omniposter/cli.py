@@ -322,6 +322,9 @@ def main(argv: list[str] | None = None) -> int:
                 max_api_token=config.max_api_token,
                 max_api_base=config.max_api_base,
                 max_chat_id=str(args.max_chat_id).strip() or None,
+                instagram_access_token=os.environ.get("INSTAGRAM_ACCESS_TOKEN"),
+                instagram_account_id=os.environ.get("INSTAGRAM_ACCOUNT_ID"),
+                imgbb_api_key=os.environ.get("IMGBB_API_KEY"),
                 links_file=str(args.links_file).strip() or None,
             )
         )

@@ -8,6 +8,7 @@ from pathlib import Path
 import requests
 
 from .publishers.vk import VkPublisher
+from .publishers.instagram import InstagramPublisher
 from .publishers.max_gateway import MaxGatewayPublisher
 
 
@@ -20,6 +21,9 @@ class TgSyncConfig:
     max_api_token: str | None = None
     max_api_base: str = "https://botapi.max.ru"
     max_chat_id: str | None = None
+    instagram_access_token: str | None = None
+    instagram_account_id: str | None = None
+    imgbb_api_key: str | None = None
     links_file: str | None = None
     timeout_s: int = 30
 
@@ -161,6 +165,15 @@ class TgSync:
         max_pub = (
             MaxGatewayPublisher(token=self._config.max_api_token, base_url=self._config.max_api_base)
             if self._config.max_api_token and self._config.max_chat_id
+        )
+        ig_pub = (
+            InstagramPublisher(
+                access_token=self._config.instagram_access_token,
+                account_id=self._config.instagram_account_id,
+                imgbb_api_key=self._config.imgbb_api_key,
+            )
+            if self._config.instagram_access_token and self._config.instagram_account_id and self._config.imgbb_api_key
+            else None
             else None
         )
 
@@ -338,6 +351,12 @@ class TgSync:
                     max_pub.send_video(chat_id=self._config.max_chat_id, video_path=video_paths[0], text=text if not paths else '', video_url=video_url)
                 if not paths and not video_paths and text:
                     max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
+
+            if ig_pub:
+                if paths:
+                    ig_pub.post_photos(image_paths=paths, text=text)
+                elif not paths and not video_paths and text:
+                    ig_pub.post_text(text=text)
 
             seen[key] = "posted"
             processed += 1
