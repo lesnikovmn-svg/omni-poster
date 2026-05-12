@@ -165,6 +165,7 @@ class TgSync:
         max_pub = (
             MaxGatewayPublisher(token=self._config.max_api_token, base_url=self._config.max_api_base)
             if self._config.max_api_token and self._config.max_chat_id
+            else None
         )
         ig_pub = (
             InstagramPublisher(
@@ -173,7 +174,6 @@ class TgSync:
                 imgbb_api_key=self._config.imgbb_api_key,
             )
             if self._config.instagram_access_token and self._config.instagram_account_id and self._config.imgbb_api_key
-            else None
             else None
         )
 
