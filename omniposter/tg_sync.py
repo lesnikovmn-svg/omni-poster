@@ -302,7 +302,7 @@ class TgSync:
             for m in group:
                 keys = [k for k in m.keys() if k not in ('date','message_id','chat','from','sender_chat')]
                 if any(k in m for k in ('video','animation','document')):
-                    print(f'[DEBUG] msg keys: {keys}')
+                    pass  # debug removed
             file_ids: list[str] = []
             video_ids: list[str] = []
             for m in group:
@@ -353,6 +353,7 @@ class TgSync:
                     max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
 
             if ig_pub:
+                print(f"[Instagram] posting paths={len(paths)} text={bool(text)}")
                 if paths:
                     ig_pub.post_photos(image_paths=paths, text=text)
                 elif not paths and not video_paths and text:
