@@ -43,6 +43,8 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_REWRITE: ${{ secrets.AI_REWRITE }}
         run: |
           git fetch https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} main
           git checkout FETCH_HEAD -- .state/ 2>/dev/null || true
