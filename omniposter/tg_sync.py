@@ -1,12 +1,15 @@
 from __future__ import annotations
+from datetime import datetime, timezone, timedelta
+import time
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import requests
 
 from .publishers.vk import VkPublisher
+from .publishers.instagram import InstagramPublisher
 from .publishers.max_gateway import MaxGatewayPublisher
 
 
@@ -19,12 +22,11 @@ class TgSyncConfig:
     max_api_token: str | None = None
     max_api_base: str = "https://botapi.max.ru"
     max_chat_id: str | None = None
+    instagram_access_token: str | None = None
+    instagram_account_id: str | None = None
+    imgbb_api_key: str | None = None
     links_file: str | None = None
     timeout_s: int = 30
-    # AI rewrite
-    anthropic_api_key: str | None = None
-    ai_rewrite: bool = False
-    ai_rewrite_prompt: str | None = None
 
 
 class TgSync:
@@ -55,6 +57,10 @@ class TgSync:
         import re
         return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
 
+    def _fix_tg_mentions(self, text: str) -> str:
+        import re
+        return re.sub(r'@([A-Za-z0-9_]+)', r't.me/\1', text)
+
     def _append_links(self, text: str) -> str:
         if not self._links:
             return text
@@ -65,21 +71,6 @@ class TgSync:
             if label and url:
                 lines.append(f"{label} {url}")
         return "\n".join(lines)
-
-    def _ai_rewrite(self, text: str) -> str:
-        """Переписывает текст поста через Claude API."""
-        if not text.strip():
-            return text
-        try:
-            from .ai_rewriter import AIRewriter
-            rewriter = AIRewriter(api_key=self._config.anthropic_api_key)
-            rewritten = rewriter.rewrite(text, prompt=self._config.ai_rewrite_prompt)
-            print(f"[ai-rewrite] original: {text[:80]}...")
-            print(f"[ai-rewrite] rewritten: {rewritten[:80]}...")
-            return rewritten
-        except Exception as e:
-            print(f"[ai-rewrite] ошибка, используем оригинал: {e}")
-            return text
 
     def _tg_api(self, method: str) -> str:
         if not self._config.telegram_bot_token:
@@ -157,7 +148,14 @@ class TgSync:
         dest.write_bytes(r.content)
         return dest
 
-    def run(self, *, source: str, offset_state_path: Path, seen_state_path: Path, dry_run: bool) -> int:
+    def run(
+        self,
+        *,
+        source: str,
+        offset_state_path: Path,
+        seen_state_path: Path,
+        dry_run: bool,
+    ) -> int:
         if not self._config.vk_access_token or not self._config.vk_group_id:
             raise RuntimeError("VK_ACCESS_TOKEN and VK_GROUP_ID are required for tg-sync -> vk")
         vk = VkPublisher(
@@ -168,6 +166,15 @@ class TgSync:
         max_pub = (
             MaxGatewayPublisher(token=self._config.max_api_token, base_url=self._config.max_api_base)
             if self._config.max_api_token and self._config.max_chat_id
+            else None
+        )
+        ig_pub = (
+            InstagramPublisher(
+                access_token=self._config.instagram_access_token,
+                account_id=self._config.instagram_account_id,
+                imgbb_api_key=self._config.imgbb_api_key,
+            )
+            if self._config.instagram_access_token and self._config.instagram_account_id and self._config.imgbb_api_key
             else None
         )
 
@@ -195,6 +202,8 @@ class TgSync:
             raise RuntimeError(f"Telegram getUpdates malformed: {payload!r}")
 
         matched_messages = 0
+
+        # advance offset (only persist when not dry_run)
         max_update_id = None
         for u in updates:
             if isinstance(u, dict) and "update_id" in u:
@@ -204,6 +213,7 @@ class TgSync:
         if max_update_id is not None:
             offset = max_update_id + 1
 
+        # collect channel posts, group albums by media_group_id
         albums: dict[str, list[dict]] = {}
         singles: list[dict] = []
 
@@ -216,6 +226,7 @@ class TgSync:
             chat = msg.get("chat") or {}
             if not isinstance(chat, dict):
                 continue
+
             if stype == "chat_id":
                 if int(chat.get("id") or 0) != int(sval):
                     continue
@@ -223,6 +234,7 @@ class TgSync:
                 username = chat.get("username")
                 if not username or str(username).lower() != str(sval).lower():
                     continue
+
             matched_messages += 1
             mgid = msg.get("media_group_id")
             if mgid:
@@ -230,6 +242,7 @@ class TgSync:
             else:
                 singles.append(msg)
 
+        # Объединяем с pending альбомами из прошлого запуска
         for mgid, msgs in pending_albums.items():
             if mgid in albums:
                 existing_ids = {m.get("message_id") for m in albums[mgid]}
@@ -239,28 +252,48 @@ class TgSync:
             else:
                 albums[mgid] = msgs
 
-        def _msg_key(m: dict) -> str:
+        def _msg_key(m: dict, mgid: str | None = None) -> str:
             chat = m.get("chat") or {}
+            if mgid:
+                return f"tg:{chat.get('id')}:album:{mgid}"
             return f"tg:{chat.get('id')}:{m.get('message_id')}"
 
+        # Откладываем альбомы где есть видео но нет фото — ждём следующего запуска
         new_pending: dict[str, list[dict]] = {}
         complete_albums = {}
+        now_ts = int(time.time())
         for mgid, msgs in albums.items():
             has_photo = any(self._pick_biggest_photo_file_id(m) for m in msgs)
             has_video = any(self._pick_video_file_id(m) for m in msgs)
             if has_video and not has_photo:
-                new_pending[mgid] = msgs
+                # Если альбом в pending дольше 10 минут — постим как есть
+                msg_ts = int(msgs[0].get("date") or 0)
+                if now_ts - msg_ts > 600:
+                    complete_albums[mgid] = msgs
+                else:
+                    new_pending[mgid] = msgs
             else:
                 complete_albums[mgid] = msgs
         pending_albums = new_pending
 
-        all_items: list[list[dict]] = list(complete_albums.values()) + [[m] for m in singles]
-        all_items.sort(key=lambda group: int((group[0].get("message_id") or 0)))
+        all_items: list[tuple[list[dict], str | None]] = [
+            (msgs, mgid) for mgid, msgs in complete_albums.items()
+        ] + [([m], None) for m in singles]
+        all_items.sort(key=lambda gi: int((gi[0][0].get("message_id") or 0)))
+
+        # Проверяем время МСК (6:00 - 22:00)
+        msk = timezone(timedelta(hours=3))
+        now_msk = datetime.now(msk)
+        if not (6 <= now_msk.hour < 22):
+            print(f'[tg-sync] outside working hours MSK ({now_msk.strftime("%H:%M")}), skipping')
+            self._save_json(offset_state_path, {"offset": offset})
+            self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
+            return processed
 
         processed = 0
         skipped_seen = 0
-        for group in all_items:
-            key = _msg_key(group[0])
+        for group, mgid in all_items:
+            key = _msg_key(group[0], mgid)
             if seen.get(key):
                 skipped_seen += 1
                 continue
@@ -273,34 +306,26 @@ class TgSync:
                 if m.get("text"):
                     text = str(m.get("text"))
                     break
+            text = self._append_links(self._fix_tg_mentions(text))
 
-            text = self._fix_tg_mentions(text)
-
-            # ── AI переработка текста (если включена) ──
-            if self._config.ai_rewrite:
-                text = self._ai_rewrite(text)
-
-            text = self._append_links(text)
-
+            # debug
             for m in group:
                 keys = [k for k in m.keys() if k not in ('date','message_id','chat','from','sender_chat')]
                 if any(k in m for k in ('video','animation','document')):
-                    print(f'[DEBUG] msg keys: {keys}')
-
+                    pass  # debug removed
             file_ids: list[str] = []
             video_ids: list[str] = []
             for m in group:
                 vid = self._pick_video_file_id(m)
                 if vid:
                     video_ids.append(vid)
-                    continue
+                    continue  # не обрабатываем видео как фото
                 fid = self._pick_biggest_photo_file_id(m)
                 if fid:
                     file_ids.append(fid)
 
             if dry_run:
                 print(f"[dry-run] tg-sync {source} -> vk: {key} photos={len(file_ids)} videos={len(video_ids)}")
-                print(f"[dry-run] text: {text[:120]}")
                 processed += 1
                 continue
 
@@ -310,18 +335,23 @@ class TgSync:
 
             if file_ids:
                 paths = [self._download_file(fid, dest_dir) for fid in file_ids]
+
             if video_ids:
-                video_paths = [self._download_file(vid, dest_dir) for vid in video_ids]
-                for vp in video_paths:
-                    if not vp.suffix:
-                        vp = vp.rename(vp.with_suffix('.mp4'))
+                for vid in video_ids:
+                    try:
+                        vp = self._download_file(vid, dest_dir)
+                        if not vp.suffix:
+                            vp = vp.rename(vp.with_suffix('.mp4'))
+                        video_paths.append(vp)
+                    except Exception as e:
+                        print(f"[WARN] video download failed, skipping: {e}")
 
             if paths:
                 vk.post_photos(text=text, image_paths=paths)
             video_url: str | None = None
             if video_paths:
                 video_url = vk.post_video(text=text, video_path=video_paths[0])
-            if not paths and not video_paths:
+            if not paths and not video_paths and text:
                 vk.post_text(text=text)
 
             if max_pub and self._config.max_chat_id:
@@ -329,10 +359,18 @@ class TgSync:
                     max_pub.send_photos(chat_id=self._config.max_chat_id, image_paths=paths, text=text)
                 if video_paths:
                     max_pub.send_video(chat_id=self._config.max_chat_id, video_path=video_paths[0], text=text if not paths else '', video_url=video_url)
-                if not paths and not video_paths:
+                if not paths and not video_paths and text:
                     max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
 
-            seen[key] = "posted"
+            if ig_pub:
+                print(f"[Instagram] posting paths={len(paths)} text={bool(text)}")
+                if paths:
+                    ig_pub.post_photos(image_paths=paths, text=text)
+                elif not paths and not video_paths and text:
+                    ig_pub.post_text(text=text)
+
+            seen[key] = "posted"  # mark before posting to avoid duplicates
+            self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
             processed += 1
 
         if not dry_run:
@@ -340,7 +378,13 @@ class TgSync:
             self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
 
         if processed == 0:
-            print(f"No new Telegram posts for {source}. updates={len(updates)} matched={matched_messages} skipped_seen={skipped_seen}.")
+            print(
+                f"No new Telegram posts for {source}. "
+                f"updates={len(updates)} matched={matched_messages} skipped_seen={skipped_seen}."
+            )
             if matched_messages == 0:
-                print("Tip: bots do not backfill history. Publish a new post after adding the bot as admin, then run tg-sync again.")
+                print(
+                    "Tip: bots do not backfill history. Publish a new post after adding the bot as admin, "
+                    "then run tg-sync again."
+                )
         return 0
