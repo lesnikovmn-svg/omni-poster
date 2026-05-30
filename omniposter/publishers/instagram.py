@@ -2,16 +2,20 @@ from __future__ import annotations
 import time
 import base64
 import requests
+import cloudinary
+import cloudinary.uploader
 from pathlib import Path
 
 
 class InstagramPublisher:
     BASE_URL = "https://graph.instagram.com/v21.0"
 
-    def __init__(self, *, access_token: str, account_id: str, imgbb_api_key: str):
+    def __init__(self, *, access_token: str, account_id: str, imgbb_api_key: str, cloudinary_cloud: str | None = None, cloudinary_key: str | None = None, cloudinary_secret: str | None = None):
         self.token = access_token
         self.account_id = account_id
         self.imgbb_api_key = imgbb_api_key
+        if cloudinary_cloud and cloudinary_key and cloudinary_secret:
+            cloudinary.config(cloud_name=cloudinary_cloud, api_key=cloudinary_key, api_secret=cloudinary_secret)
 
     def _url(self, path: str) -> str:
         return f"{self.BASE_URL}/{path}"
@@ -93,6 +97,26 @@ class InstagramPublisher:
             self._publish(container_id)
         else:
             print(f"[Instagram] container {container_id} failed or timed out")
+
+    def _upload_to_cloudinary(self, path: Path) -> str:
+        result = cloudinary.uploader.upload(str(path), resource_type="video")
+        return result["secure_url"]
+
+    def post_video(self, *, video_path: Path, text: str) -> None:
+        print(f"[Instagram] uploading video to cloudinary...")
+        video_url = self._upload_to_cloudinary(video_path)
+        r = requests.post(
+            self._url(f"{self.account_id}/media"),
+            params={"access_token": self.token},
+            json={"media_type": "REELS", "video_url": video_url, "caption": text},
+            timeout=30,
+        )
+        r.raise_for_status()
+        container_id = r.json()["id"]
+        if self._wait_for_container(container_id):
+            self._publish(container_id)
+        else:
+            print(f"[Instagram] Reels container {container_id} failed")
 
     def post_text(self, *, text: str) -> None:
         pass
