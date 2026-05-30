@@ -25,6 +25,11 @@ class TgSyncConfig:
     instagram_access_token: str | None = None
     instagram_account_id: str | None = None
     imgbb_api_key: str | None = None
+    cloudinary_cloud: str | None = None
+    cloudinary_key: str | None = None
+    cloudinary_secret: str | None = None
+    anthropic_api_key: str | None = None
+    ai_rewrite: bool = False
     links_file: str | None = None
     timeout_s: int = 30
 
@@ -158,6 +163,12 @@ class TgSync:
     ) -> int:
         if not self._config.vk_access_token or not self._config.vk_group_id:
             raise RuntimeError("VK_ACCESS_TOKEN and VK_GROUP_ID are required for tg-sync -> vk")
+        rewriter = (
+            AIRewriter(api_key=self._config.anthropic_api_key)
+            if self._config.ai_rewrite and self._config.anthropic_api_key
+            else None
+        )
+
         vk = VkPublisher(
             access_token=self._config.vk_access_token,
             group_id=self._config.vk_group_id,
@@ -307,6 +318,11 @@ class TgSync:
                     text = str(m.get("text"))
                     break
             text = self._append_links(self._fix_tg_mentions(text))
+            if rewriter and text:
+                try:
+                    text = rewriter.rewrite(text)
+                except Exception as e:
+                    print(f"[AI] rewrite failed, using original: {e}")
 
             # debug
             for m in group:
