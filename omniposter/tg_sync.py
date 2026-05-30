@@ -285,7 +285,7 @@ class TgSync:
         msk = timezone(timedelta(hours=3))
         now_msk = datetime.now(msk)
         if not (6 <= now_msk.hour < 22):
-            print(f"[tg-sync] outside working hours MSK ({now_msk.strftime("%H:%M")}), skipping")
+            print(f'[tg-sync] outside working hours MSK ({now_msk.strftime("%H:%M")}), skipping')
             self._save_json(offset_state_path, {"offset": offset})
             self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
             return processed
