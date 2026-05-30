@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime, timezone, timedelta
 import time
 
 import json
@@ -280,6 +281,15 @@ class TgSync:
         ] + [([m], None) for m in singles]
         all_items.sort(key=lambda gi: int((gi[0][0].get("message_id") or 0)))
 
+        # Проверяем время МСК (6:00 - 22:00)
+        msk = timezone(timedelta(hours=3))
+        now_msk = datetime.now(msk)
+        if not (6 <= now_msk.hour < 22):
+            print(f"[tg-sync] outside working hours MSK ({now_msk.strftime("%H:%M")}), skipping")
+            self._save_json(offset_state_path, {"offset": offset})
+            self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
+            return processed
+
         processed = 0
         skipped_seen = 0
         for group, mgid in all_items:
@@ -359,7 +369,8 @@ class TgSync:
                 elif not paths and not video_paths and text:
                     ig_pub.post_text(text=text)
 
-            seen[key] = "posted"
+            seen[key] = "posted"  # mark before posting to avoid duplicates
+            self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
             processed += 1
 
         if not dry_run:
