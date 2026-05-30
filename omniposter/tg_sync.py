@@ -363,11 +363,17 @@ class TgSync:
                     max_pub.send_message(chat_id=self._config.max_chat_id, text=text)
 
             if ig_pub:
-                print(f"[Instagram] posting paths={len(paths)} text={bool(text)}")
+                ig_text = text
+                hashtags = generate_hashtags(text)
+                if hashtags:
+                    ig_text = (text + "\n\n" + hashtags).strip()
+                print(f"[Instagram] posting paths={len(paths)} videos={len(video_paths)} text={bool(ig_text)}")
                 if paths:
-                    ig_pub.post_photos(image_paths=paths, text=text)
-                elif not paths and not video_paths and text:
-                    ig_pub.post_text(text=text)
+                    ig_pub.post_photos(image_paths=paths, text=ig_text)
+                if video_paths:
+                    ig_pub.post_video(video_path=video_paths[0], text=ig_text if not paths else "")
+                elif not paths and not video_paths and ig_text:
+                    ig_pub.post_text(text=ig_text)
 
             seen[key] = "posted"  # mark before posting to avoid duplicates
             self._save_json(seen_state_path, {"seen": seen, "pending_albums": pending_albums})
