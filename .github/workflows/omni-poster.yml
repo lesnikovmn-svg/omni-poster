@@ -26,6 +26,7 @@ jobs:
 
       - name: Run
         env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           WEBHOOK_DEFAULT_URL: ${{ secrets.WEBHOOK_DEFAULT_URL }}
           VK_ACCESS_TOKEN: ${{ secrets.VK_ACCESS_TOKEN }}
