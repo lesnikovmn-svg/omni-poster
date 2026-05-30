@@ -74,9 +74,10 @@ class VkPublisher:
             upload_url = server["upload_url"]
             try:
                 upload_resp = requests.post(upload_url, files={"photo": (p.name, p.read_bytes(), "image/jpeg")}, timeout=self.timeout_s)
-            except RequestException as e:
-                raise RuntimeError("VK upload failed: network/DNS error") from e
-            upload_resp.raise_for_status()
+                upload_resp.raise_for_status()
+            except Exception as e:
+                print(f"[WARN] VK photo upload failed, skipping {p.name}: {e}")
+                continue
             upload_data = upload_resp.json()
             print(f"VK upload response: {upload_data!r}")
             if not all(k in upload_data for k in ("server", "photo", "hash")):
