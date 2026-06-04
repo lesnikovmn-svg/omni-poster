@@ -326,6 +326,12 @@ def main(argv: list[str] | None = None) -> int:
                 instagram_access_token=os.environ.get("INSTAGRAM_ACCESS_TOKEN"),
                 instagram_account_id=os.environ.get("INSTAGRAM_ACCOUNT_ID"),
                 imgbb_api_key=os.environ.get("IMGBB_API_KEY"),
+                cloudinary_cloud=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+                cloudinary_key=os.environ.get("CLOUDINARY_API_KEY"),
+                cloudinary_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+                anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
+                ai_rewrite=bool(os.environ.get("AI_REWRITE")),
+                assemblyai_api_key=os.environ.get("ASSEMBLYAI_API_KEY"),
                 links_file=str(args.links_file).strip() or None,
             )
         )
