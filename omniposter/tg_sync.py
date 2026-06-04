@@ -27,6 +27,12 @@ class TgSyncConfig:
     instagram_account_id: str | None = None
     imgbb_api_key: str | None = None
     links_file: str | None = None
+    cloudinary_cloud: str | None = None
+    cloudinary_key: str | None = None
+    cloudinary_secret: str | None = None
+    anthropic_api_key: str | None = None
+    ai_rewrite: bool = False
+    assemblyai_api_key: str | None = None
     timeout_s: int = 30
 
 
@@ -159,6 +165,12 @@ class TgSync:
     ) -> int:
         if not self._config.vk_access_token or not self._config.vk_group_id:
             raise RuntimeError("VK_ACCESS_TOKEN and VK_GROUP_ID are required for tg-sync -> vk")
+        video_proc = (
+            VideoProcessor(api_key=self._config.assemblyai_api_key)
+            if self._config.assemblyai_api_key
+            else None
+        )
+
         vk = VkPublisher(
             access_token=self._config.vk_access_token,
             group_id=self._config.vk_group_id,
@@ -343,6 +355,9 @@ class TgSync:
                         vp = self._download_file(vid, dest_dir)
                         if not vp.suffix:
                             vp = vp.rename(vp.with_suffix('.mp4'))
+                        if video_proc:
+                            out = vp.with_name(vp.stem + "_sub.mp4")
+                            vp = video_proc.add_subtitles(vp, out)
                         video_paths.append(vp)
                     except Exception as e:
                         print(f"[WARN] video download failed, skipping: {e}")
