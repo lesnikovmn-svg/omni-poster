@@ -12,6 +12,7 @@ from .publishers.vk import VkPublisher
 from .publishers.instagram import InstagramPublisher
 from .publishers.max_gateway import MaxGatewayPublisher
 from .hashtags import generate_hashtags
+from .video_processor import VideoProcessor
 
 
 @dataclass(frozen=True)
