@@ -8,8 +8,9 @@ from pathlib import Path
 
 
 class VideoProcessor:
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None, watermark: str | None = None):
         self._api_key = api_key or os.environ.get("ASSEMBLYAI_API_KEY")
+        self._watermark = watermark or str(Path(__file__).parent.parent / "assets" / "watermark.jpg")
 
     def _transcribe(self, video_path: Path) -> list[dict]:
         if not self._api_key:
@@ -71,23 +72,59 @@ class VideoProcessor:
         return "\n".join(srt)
 
     def add_subtitles(self, video_path: Path, output_path: Path) -> Path:
-        print(f"[VideoProcessor] transcribing {video_path.name}...")
+        print(f"[VideoProcessor] processing {video_path.name}...")
         words = self._transcribe(video_path)
-        if not words:
-            print("[VideoProcessor] no words, copying original")
-            shutil.copy(video_path, output_path)
-            return output_path
-        srt_content = self._make_srt(words)
-        srt_path = video_path.with_suffix(".srt")
-        srt_path.write_text(srt_content, encoding="utf-8")
-        cmd = [
-            "ffmpeg", "-y", "-i", str(video_path),
-            "-vf", f"subtitles={srt_path}:force_style='FontSize=18,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=2,Bold=1'",
-            "-c:a", "copy", str(output_path),
-        ]
+
+        # Строим фильтр FFmpeg
+        filters = []
+
+        # 1. Цветокоррекция
+        filters.append("eq=brightness=0.05:saturation=1.2:contrast=1.1")
+
+        # 2. Обрезка под 9:16
+        filters.append("crop=ih*9/16:ih")
+        filters.append("scale=1080:1920")
+
+        # 3. Субтитры
+        if words:
+            srt_content = self._make_srt(words)
+            srt_path = video_path.with_suffix(".srt")
+            srt_path.write_text(srt_content, encoding="utf-8")
+            print(f"[VideoProcessor] {len(words)} words transcribed")
+            filters.append(f"subtitles={srt_path}:force_style=\'FontSize=18,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,Outline=2,Bold=1\'")
+        else:
+            print("[VideoProcessor] no speech detected")
+
+        # 4. Watermark
+        watermark_path = Path(self._watermark)
+        if watermark_path.exists():
+            vf = ",".join(filters)
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", str(video_path),
+                "-i", str(watermark_path),
+                "-filter_complex",
+                f"[0:v]{vf}[v];[1:v]scale=120:120[wm];[v][wm]overlay=W-w-20:H-h-20",
+                "-c:a", "copy",
+                str(output_path),
+            ]
+        else:
+            vf = ",".join(filters)
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", str(video_path),
+                "-vf", vf,
+                "-c:a", "copy",
+                str(output_path),
+            ]
+
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             print(f"[VideoProcessor] FFmpeg error: {result.stderr[-300:]}")
             shutil.copy(video_path, output_path)
-        srt_path.unlink(missing_ok=True)
+        else:
+            print(f"[VideoProcessor] done: {output_path.name}")
+
+        if words:
+            srt_path.unlink(missing_ok=True)
         return output_path
