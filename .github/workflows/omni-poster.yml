@@ -47,6 +47,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           AI_REWRITE: ${{ secrets.AI_REWRITE }}
           ASSEMBLYAI_API_KEY: ${{ secrets.ASSEMBLYAI_API_KEY }}
+          TG_API_ID: ${{ secrets.tg_api_id }}
+          TG_API_HASH: ${{ secrets.tg_api_hash }}
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
         run: |
           git fetch https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} main
           git checkout FETCH_HEAD -- .state/ 2>/dev/null || true
@@ -55,6 +58,7 @@ jobs:
           python -m omniposter run --posts ./posts/my_avto_optimal --state ./.state/my_avto_optimal.json
           python -m omniposter tg-sync --source @MY_Avto5 --offset-state ./.state/tg_offset_my_avto5.json --seen-state ./.state/tg_seen_my_avto5.json --max-chat-id -68063930876115
           python -m omniposter tg-sync --source @My_Avto_Optimal --offset-state ./.state/tg_offset_my_avto_optimal.json --seen-state ./.state/tg_seen_my_avto_optimal.json --max-chat-id -70966889742547
+          python -m omniposter stories-sync --seen-state ./.state/stories_seen.json || true
 
       - name: Commit state
         run: |

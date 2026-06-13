@@ -308,7 +308,26 @@ def main(argv: list[str] | None = None) -> int:
         help="Also check VK_ACCESS_TOKEN against VK_GROUP_ID via groups.getById",
     )
 
+    # stories-sync subcommand
+    stories_p = sub.add_parser("stories-sync")
+    stories_p.add_argument("--seen-state", default=".state/stories_seen.json")
+
     args = parser.parse_args(argv)
+    if args.cmd == "stories-sync":
+        import os
+        from pathlib import Path as _Path
+        session = os.environ.get("TG_SESSION_STRING", "")
+        api_id = int(os.environ.get("TG_API_ID", "0"))
+        api_hash = os.environ.get("TG_API_HASH", "")
+        ig_token = os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
+        ig_account_id = os.environ.get("INSTAGRAM_ACCOUNT_ID", "")
+        if not all([session, api_id, api_hash, ig_token, ig_account_id]):
+            print("[stories-sync] missing credentials, skipping")
+            return 0
+        sync = TgStoriesSync(session, api_id, api_hash)
+        n = sync.run(_Path(".state/tg_stories"), ig_token, ig_account_id, _Path(args.seen_state))
+        print(f"[stories-sync] posted {n} stories")
+        return 0
     if args.cmd == "run":
         state_path = Path(args.state) if str(args.state).strip() else None
         return _run(Path(args.posts), dry_run=bool(args.dry_run), state_path=state_path)
