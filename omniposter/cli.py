@@ -314,7 +314,6 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.cmd == "stories-sync":
-        import os
         from pathlib import Path as _Path
         session = os.environ.get("TG_SESSION_STRING", "")
         api_id = int(os.environ.get("TG_API_ID", "0"))
