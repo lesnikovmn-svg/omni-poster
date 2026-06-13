@@ -13,6 +13,7 @@ from .scheduler import select_due
 from .storage import load_posts, serialize_post
 from .state import load_state, mark_posted, save_state
 from .tg_sync import TgSync, TgSyncConfig
+from .tg_stories_sync import TgStoriesSync
 from .vk_oauth import exchange_code_for_token
 from .publishers import (
     InstagramGraphPublisher,
