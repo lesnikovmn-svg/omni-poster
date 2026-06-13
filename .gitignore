@@ -7,3 +7,4 @@ secrets/*.txt
 secrets/tg_links.json
 .DS_Store
 .state/tg_media/
+userbot_session.session
