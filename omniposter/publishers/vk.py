@@ -100,6 +100,9 @@ class VkPublisher:
             for photo in saved:
                 attachments.append(f"photo{photo['owner_id']}_{photo['id']}")
 
+        if not attachments and not text:
+            print("[VK] no attachments and no text, skipping wall.post")
+            return
         self._call(
             "wall.post",
             {
