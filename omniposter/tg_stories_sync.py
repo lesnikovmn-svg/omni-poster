@@ -15,18 +15,24 @@ class TgStoriesSync:
     async def _get_recent_stories(self, dest_dir: Path) -> list[Path]:
         from telethon import TelegramClient
         from telethon.sessions import StringSession
+        from telethon.tl.functions.stories import GetAllStoriesRequest
         files = []
-        async with TelegramClient(StringSession(self._session_string), self._api_id, self._api_hash) as client:
-            result = await client(client._TelegramClient__help_get_app_update())
-            stories = await client.get_stories("me")
-            for story in stories:
-                if hasattr(story, "media") and story.media:
-                    path = dest_dir / f"story_{story.id}"
-                    await client.download_media(story.media, str(path))
-                    # Найдём скачанный файл
-                    for f in dest_dir.glob(f"story_{story.id}*"):
-                        files.append(f)
-                        break
+        client = TelegramClient(StringSession(self._session_string), self._api_id, self._api_hash)
+        await client.connect()
+        try:
+            result = await client(GetAllStoriesRequest(next=False, hidden=False, next_offset=None))
+            for peer_stories in result.peer_stories:
+                for story in peer_stories.stories:
+                    if hasattr(story, "media") and story.media:
+                        path = dest_dir / f"story_{story.id}"
+                        await client.download_media(story.media, str(path))
+                        for f in dest_dir.glob(f"story_{story.id}*"):
+                            files.append(f)
+                            break
+        except Exception as e:
+            print(f"[stories-sync] TG error: {e}")
+        finally:
+            await client.disconnect()
         return files
 
     def post_to_instagram_story(self, file_path: Path, ig_token: str, ig_account_id: str) -> bool:
@@ -34,7 +40,6 @@ class TgStoriesSync:
         is_video = suffix in (".mp4", ".mov", ".avi")
 
         if is_video:
-            # Загружаем видео на cloudinary
             try:
                 import cloudinary
                 import cloudinary.uploader
@@ -50,7 +55,6 @@ class TgStoriesSync:
                 print(f"[Stories] video upload failed: {e}")
                 return False
         else:
-            # Фото через imgbb
             imgbb_key = os.environ.get("IMGBB_API_KEY")
             with open(file_path, "rb") as f:
                 data = base64.b64encode(f.read()).decode("utf-8")
@@ -73,7 +77,6 @@ class TgStoriesSync:
             return False
 
         container_id = r.json()["id"]
-        # Публикуем
         r2 = requests.post(
             f"https://graph.instagram.com/v21.0/{ig_account_id}/media_publish",
             params={"access_token": ig_token},
