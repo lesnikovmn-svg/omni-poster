@@ -20,7 +20,7 @@ class TgStoriesSync:
         client = TelegramClient(StringSession(self._session_string), self._api_id, self._api_hash)
         await client.connect()
         try:
-            result = await client(GetAllStoriesRequest(next=False, hidden=False, next_offset=None))
+            result = await client(GetAllStoriesRequest(next=False, hidden=False))
             for peer_stories in result.peer_stories:
                 for story in peer_stories.stories:
                     if hasattr(story, "media") and story.media:
