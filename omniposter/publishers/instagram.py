@@ -82,6 +82,8 @@ class InstagramPublisher:
                     json={"image_url": url, "is_carousel_item": True},
                     timeout=30,
                 )
+                if not r.ok:
+                    print(f"[Instagram] error response: {r.text}")
                 r.raise_for_status()
                 children.append(r.json()["id"])
             r = requests.post(
