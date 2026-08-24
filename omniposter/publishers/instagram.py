@@ -11,7 +11,7 @@ class InstagramPublisher:
     BASE_URL = "https://graph.instagram.com/v21.0"
 
     def __init__(self, *, access_token: str, account_id: str, imgbb_api_key: str, cloudinary_cloud: str | None = None, cloudinary_key: str | None = None, cloudinary_secret: str | None = None):
-        self.token = access_token
+        self.token = access_token.strip()
         self.account_id = account_id
         self.imgbb_api_key = imgbb_api_key
         if cloudinary_cloud and cloudinary_key and cloudinary_secret:
