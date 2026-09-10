@@ -363,13 +363,20 @@ class TgSync:
                     except Exception as e:
                         print(f"[WARN] video download failed, skipping: {e}")
 
-            if paths:
-                vk.post_photos(text=text, image_paths=paths)
+            time.sleep(3)  # avoid VK flood control
+            try:
+                if paths:
+                    vk.post_photos(text=text, image_paths=paths)
+            except Exception as e:
+                print(f"[WARN] VK post_photos failed: {e}")
             video_url: str | None = None
-            if video_paths:
-                video_url = vk.post_video(text=text, video_path=video_paths[0])
-            if not paths and not video_paths and text:
-                vk.post_text(text=text)
+            try:
+                if video_paths:
+                    video_url = vk.post_video(text=text, video_path=video_paths[0])
+                if not paths and not video_paths and text:
+                    vk.post_text(text=text)
+            except Exception as e:
+                print(f"[WARN] VK post failed: {e}")
 
             if max_pub and self._config.max_chat_id:
                 if paths:
