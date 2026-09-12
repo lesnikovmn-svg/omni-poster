@@ -12,28 +12,61 @@ class TgStoriesSync:
         self._api_id = api_id
         self._api_hash = api_hash
 
-    async def _get_recent_stories(self, dest_dir: Path) -> list[Path]:
+    async def _get_recent_stories(self, dest_dir: Path, already_seen: set[str]) -> list[tuple[str, Path]]:
+        """T-164 (12.09.2026, найдено при работе над myavto-agregator T-163 —
+        в .state/tg_stories/ обнаружены десятки дублей одного и того же
+        файла сторис: story_471.mp4, story_471 (2).mp4 ... story_471 (24).mp4):
+
+        Раньше эта функция на КАЖДЫЙ прогон (крон — каждые 5 минут, см.
+        .github/workflows/omni-poster.yml) заново скачивала КАЖДУЮ видимую
+        в Telegram сторис, не проверяя already_seen до скачивания. Локальный
+        путь файла был "story_{id}" без привязки к тому, ОТ КОГО сторис
+        (peer) — а Telegram нумерует id сторис отдельным счётчиком на
+        каждого автора, поэтому сторис #5 канала A и сторис #5 канала B (или
+        личного контакта) физически претендовали на один и тот же путь на
+        диске. Из-за занятого имени Telethon сам добавлял " (n)" при каждом
+        повторном скачивании — и именно этот "(n)" в ИМЕНИ ФАЙЛА (а не сам
+        Telegram story id) использовался как ключ дедупа в run()
+        (story_id = f.stem). У каждого прогона получался НОВЫЙ, отличающийся
+        stem — "уже виденная" проверка никогда не срабатывала, run() считал
+        сторис "новой" и публиковал её в Instagram Stories ПОВТОРНО,
+        потенциально каждые 5 минут на всё время жизни сторис (обычно
+        24-48ч), пока она не пропадала из GetAllStories.
+
+        Исправлено: ключ дедупа — f"{peer_id}_{story.id}", собран из самого
+        Telegram (peer + id), стабилен между прогонами и не коллизирует
+        между разными авторами; already_seen проверяется ДО скачивания (не
+        только перед публикацией) — уже опубликованные сторис вообще не
+        скачиваются повторно. Это заодно останавливает бесконтрольный рост
+        .state/tg_stories/ (на момент находки — сотни файлов, суммарно сотни
+        МБ, закоммиченных в историю git через "chore: update state" коммиты
+        крона)."""
         from telethon import TelegramClient
         from telethon.sessions import StringSession
         from telethon.tl.functions.stories import GetAllStoriesRequest
-        files = []
+        from telethon.utils import get_peer_id
+        results: list[tuple[str, Path]] = []
         client = TelegramClient(StringSession(self._session_string), self._api_id, self._api_hash)
         await client.connect()
         try:
             result = await client(GetAllStoriesRequest(next=False, hidden=False))
             for peer_stories in result.peer_stories:
+                peer_key = get_peer_id(peer_stories.peer)
                 for story in peer_stories.stories:
-                    if hasattr(story, "media") and story.media:
-                        path = dest_dir / f"story_{story.id}"
-                        await client.download_media(story.media, str(path))
-                        for f in dest_dir.glob(f"story_{story.id}*"):
-                            files.append(f)
-                            break
+                    if not (hasattr(story, "media") and story.media):
+                        continue
+                    story_key = f"{peer_key}_{story.id}"
+                    if story_key in already_seen:
+                        continue
+                    path = dest_dir / story_key
+                    downloaded = await client.download_media(story.media, str(path))
+                    if downloaded:
+                        results.append((story_key, Path(downloaded)))
         except Exception as e:
             print(f"[stories-sync] TG error: {e}")
         finally:
             await client.disconnect()
-        return files
+        return results
 
     def post_to_instagram_story(self, file_path: Path, ig_token: str, ig_account_id: str) -> bool:
         suffix = file_path.suffix.lower()
@@ -96,18 +129,24 @@ class TgStoriesSync:
             seen = set(json.loads(seen_path.read_text()))
 
         dest_dir.mkdir(parents=True, exist_ok=True)
-        files = asyncio.run(self._get_recent_stories(dest_dir))
+        downloaded = asyncio.run(self._get_recent_stories(dest_dir, seen))
         posted = 0
         new_seen = set(seen)
 
-        for f in files:
-            story_id = f.stem
-            if story_id in seen:
-                continue
+        for story_key, f in downloaded:
             ok = self.post_to_instagram_story(f, ig_token, ig_account_id)
             if ok:
-                new_seen.add(story_id)
+                new_seen.add(story_key)
                 posted += 1
+            # T-164: чистим локальный файл в ЛЮБОМ случае (успех/провал) —
+            # успешные уже не скачаются снова (story_key в new_seen), а
+            # неудачные просто перекачаются заново на следующем прогоне,
+            # пока сторис ещё жива в Telegram. Не даём .state/tg_stories/
+            # расти бесконтрольно ни в одном из исходов.
+            try:
+                f.unlink()
+            except OSError:
+                pass
 
-        seen_path.write_text(json.dumps(list(new_seen)))
+        seen_path.write_text(json.dumps(sorted(new_seen)))
         return posted
