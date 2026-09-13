@@ -324,7 +324,12 @@ def main(argv: list[str] | None = None) -> int:
         if not all([session, api_id, api_hash, ig_token, ig_account_id]):
             print("[stories-sync] missing credentials, skipping")
             return 0
-        sync = TgStoriesSync(session, api_id, api_hash)
+        # T-170 (13.09.2026): allowlist по peer, см. tg_stories_sync.py.
+        # STORIES_SYNC_ALLOWED_PEERS - через запятую, например "MY_Avto5,My_Avto_Optimal,me".
+        # Не задано -> используется дефолт из TgStoriesSync (те же 3 peer'а).
+        allowed_peers_raw = os.environ.get("STORIES_SYNC_ALLOWED_PEERS", "")
+        allowed_peers = [p.strip() for p in allowed_peers_raw.split(",") if p.strip()] or None
+        sync = TgStoriesSync(session, api_id, api_hash, allowed_peers=allowed_peers)
         n = sync.run(_Path(".state/tg_stories"), ig_token, ig_account_id, _Path(args.seen_state))
         print(f"[stories-sync] posted {n} stories")
         return 0
