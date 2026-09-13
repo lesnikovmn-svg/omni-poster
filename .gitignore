@@ -10,3 +10,4 @@ secrets/tg_links.json
 userbot_session.session
 userbot_session.session
 .env
+.state/tg_stories/
