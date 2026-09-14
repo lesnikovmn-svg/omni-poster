@@ -82,7 +82,7 @@ class TgStoriesSync:
         нет в allowlist, пропускается ДО скачивания."""
         from telethon import TelegramClient
         from telethon.sessions import StringSession
-        from telethon.tl.functions.stories import GetAllStoriesRequest
+        from telethon.tl.functions.stories import GetAllStoriesRequest, GetPeerStoriesRequest
         from telethon.utils import get_peer_id
         results: list[tuple[str, Path]] = []
         client = TelegramClient(StringSession(self._session_string), self._api_id, self._api_hash)
@@ -93,7 +93,26 @@ class TgStoriesSync:
                 print("[stories-sync] no allowed peers could be resolved, skipping this run")
                 return results
             result = await client(GetAllStoriesRequest(next=False, hidden=False))
-            for peer_stories in result.peer_stories:
+            all_peer_stories = list(result.peer_stories)
+            # T-173 (14.09.2026, по запросу пользователя - "выложил вчера сторис
+            # в тг, в инсту не пришло, проверь причину"): GetAllStoriesRequest
+            # (stories.getAllStories) по документации Telegram отдаёт сторис
+            # контактов/подписок текущего аккаунта, но НЕ собственные сторис
+            # самого аккаунта - поэтому "me" в allowlist (T-170) физически
+            # никогда не мог сработать через этот запрос, и сторис с личного
+            # TG-аккаунта в Instagram не попадали вообще (не с T-170, а всегда).
+            # Свои сторис нужно тянуть отдельным методом - stories.getPeerStories
+            # с peer="me" - он возвращает тот же тип PeerStories(peer, stories),
+            # что и элементы result.peer_stories, поэтому просто добавляем его
+            # в общий список и дальше всё (allowlist-проверка, дедуп по
+            # peer_id_story.id, скачивание) работает без изменений.
+            try:
+                own = await client(GetPeerStoriesRequest(peer="me"))
+                if own and own.stories and own.stories.stories:
+                    all_peer_stories.append(own.stories)
+            except Exception as e:
+                print(f"[stories-sync] could not fetch own stories: {e}")
+            for peer_stories in all_peer_stories:
                 peer_key = get_peer_id(peer_stories.peer)
                 if peer_key not in allowed_peer_ids:
                     continue
