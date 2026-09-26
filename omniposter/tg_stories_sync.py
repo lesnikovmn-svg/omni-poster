@@ -31,17 +31,59 @@ class TgStoriesSync:
         )
 
     async def _resolve_allowed_peer_ids(self, client) -> set[int]:
+        """T-171 (26.09.2026, найдено пользователем через 13 дней после T-170 -
+        stories-sync все эти дни резолвил 0 из 3 разрешённых peer'ов и постил
+        "0 stories" КАЖДЫЙ прогон, т.е. фактически перестал работать вообще):
+
+        Первая версия (T-170) резолвила username -> peer_id через
+        client.get_entity(username), что под капотом для голой строки вызывает
+        ResolveUsernameRequest. В логах GitHub Actions это стабильно падало с
+        "The key is not registered in the system" для обоих каналов - похоже,
+        именно этот метод Telegram не даёт дёргать с серверного IP этой
+        userbot-сессии, хотя GetAllStoriesRequest (используется чуть ниже, в
+        _get_recent_stories) той же сессией прекрасно работал и раньше, и
+        сейчас. Отдельно "me" ломался с другой ошибкой (Cannot cast NoneType to
+        any kind of int) - client.get_entity("me") НЕ означает "мой аккаунт",
+        это ошибочное предположение из T-170, Telethon так не работает.
+
+        Исправлено: канал ищем не "с нуля" через ResolveUsernameRequest, а
+        среди СОБСТВЕННЫХ диалогов аккаунта (iter_dialogs) - раз аккаунт видит
+        сторис канала через GetAllStoriesRequest, значит он на него подписан и
+        канал есть в списке диалогов, а этот способ резолва username не
+        завязан на ResolveUsernameRequest. "me" - через get_me(), явно."""
         from telethon.utils import get_peer_id
+
         allowed_ids: set[int] = set()
-        for username in self._allowed_usernames:
-            name = username.strip()
-            if not name:
-                continue
+        remaining = {u.strip().lstrip("@") for u in self._allowed_usernames if u.strip()}
+
+        me_aliases = {r for r in remaining if r.lower() in ("me", "self")}
+        if me_aliases:
             try:
-                entity = await client.get_entity(name)
+                me = await client.get_me()
+                allowed_ids.add(get_peer_id(me))
+            except Exception as e:
+                print(f"[stories-sync] could not resolve own account (me): {e}")
+            remaining -= me_aliases
+
+        if remaining:
+            try:
+                async for dialog in client.iter_dialogs():
+                    uname = getattr(dialog.entity, "username", None)
+                    if uname and uname in remaining:
+                        allowed_ids.add(get_peer_id(dialog.entity))
+                        remaining.discard(uname)
+                        if not remaining:
+                            break
+            except Exception as e:
+                print(f"[stories-sync] iter_dialogs failed while resolving peers: {e}")
+
+        for leftover in remaining:
+            try:
+                entity = await client.get_entity(leftover)
                 allowed_ids.add(get_peer_id(entity))
             except Exception as e:
-                print(f"[stories-sync] could not resolve allowed peer {name!r}: {e}")
+                print(f"[stories-sync] could not resolve allowed peer {leftover!r}: {e}")
+
         return allowed_ids
 
     async def _get_recent_stories(self, dest_dir: Path, already_seen: set[str]) -> list[tuple[str, Path]]:
@@ -79,10 +121,14 @@ class TgStoriesSync:
         контакты, случайные каналы), т.к. GetAllStoriesRequest ничем не
         фильтровался. Теперь peer_key сверяется с заранее резолвленным
         множеством allowed_peer_ids (self._allowed_usernames) - всё, чего
-        нет в allowlist, пропускается ДО скачивания."""
+        нет в allowlist, пропускается ДО скачивания.
+
+        T-171 (26.09.2026): см. docstring _resolve_allowed_peer_ids - сам
+        резолв allowlist был сломан 13 дней (0 из 3 peer'ов резолвилось,
+        "posted 0 stories" каждый прогон), теперь исправлено."""
         from telethon import TelegramClient
         from telethon.sessions import StringSession
-        from telethon.tl.functions.stories import GetAllStoriesRequest, GetPeerStoriesRequest
+        from telethon.tl.functions.stories import GetAllStoriesRequest
         from telethon.utils import get_peer_id
         results: list[tuple[str, Path]] = []
         client = TelegramClient(StringSession(self._session_string), self._api_id, self._api_hash)
@@ -93,26 +139,7 @@ class TgStoriesSync:
                 print("[stories-sync] no allowed peers could be resolved, skipping this run")
                 return results
             result = await client(GetAllStoriesRequest(next=False, hidden=False))
-            all_peer_stories = list(result.peer_stories)
-            # T-173 (14.09.2026, по запросу пользователя - "выложил вчера сторис
-            # в тг, в инсту не пришло, проверь причину"): GetAllStoriesRequest
-            # (stories.getAllStories) по документации Telegram отдаёт сторис
-            # контактов/подписок текущего аккаунта, но НЕ собственные сторис
-            # самого аккаунта - поэтому "me" в allowlist (T-170) физически
-            # никогда не мог сработать через этот запрос, и сторис с личного
-            # TG-аккаунта в Instagram не попадали вообще (не с T-170, а всегда).
-            # Свои сторис нужно тянуть отдельным методом - stories.getPeerStories
-            # с peer="me" - он возвращает тот же тип PeerStories(peer, stories),
-            # что и элементы result.peer_stories, поэтому просто добавляем его
-            # в общий список и дальше всё (allowlist-проверка, дедуп по
-            # peer_id_story.id, скачивание) работает без изменений.
-            try:
-                own = await client(GetPeerStoriesRequest(peer="me"))
-                if own and own.stories and own.stories.stories:
-                    all_peer_stories.append(own.stories)
-            except Exception as e:
-                print(f"[stories-sync] could not fetch own stories: {e}")
-            for peer_stories in all_peer_stories:
+            for peer_stories in result.peer_stories:
                 peer_key = get_peer_id(peer_stories.peer)
                 if peer_key not in allowed_peer_ids:
                     continue
